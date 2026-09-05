@@ -1,0 +1,17 @@
+# mise config for statifier_datamodel: toolchain only.
+#
+#   mise install        provision the toolchain below
+#
+# Pinned to match the rest of the family - statifier-ex, statifier_blocks and
+# statifier-ui, the two of which will depend on this package. One toolchain
+# across the family means a module that compiles here compiles the same way
+# in the packages that take it. It also satisfies mix.exs's
+# `elixir: "~> 1.18"`.
+#
+# The corpus, spec, and env blocks statifier-ex carries have no counterpart
+# here, and neither does its Java entry - nothing in lib/ or test/ needs a
+# JRE.
+
+[tools]
+erlang = "27.3"
+elixir = "1.18.3-otp-27"
