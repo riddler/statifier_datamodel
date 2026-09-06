@@ -10,6 +10,42 @@ fragment in [`changelog.d/`](changelog.d/README.md); the fragments are assembled
 into a version section at release. See that README for the format and for when a
 change warrants an entry at all.
 
+## [0.3.0] 2026-09-06
+
+What `Compatibility.breaks/2` reports changes, and an entry's type may now
+name a declaration. A declaration field's `one_of` is a completion hint and
+never a break, so `{:group_added, name}` is gone; in its place a record field
+going required -> optional is a break, `{:made_optional, name}`, which is what
+0.2.0's stricter read check made it. Beside them, an entry's `type` - and a
+`list` entry's `item_type` - may name a declaration the document's `types` key
+declares, and `Index.type/2` answers `{:declared, name}` for one. A caller
+matching on the tuple that is gone stops matching, which is why this release is
+a MINOR under `0.x`. Both arms are recorded in the sd-ADR-0001 amendment
+accepted on the operator's campaign-034 ruling.
+
+### Added
+
+- An entry's `type`, and a `list` entry's `item_type`, may name a declaration
+  the document's `types` key declares: the entry carries `{:declared, name}`
+  and contributes the declaration's fields beneath its own path, exactly as
+  an inlined `object` entry contributes its `fields`. A spelling that names
+  no declaration and nothing in the closed set is still unknown.
+
+### Changed
+
+- A declaration field's `one_of` is a completion hint and never a break:
+  `Compatibility.breaks/2` reports nothing for a value group added, removed,
+  reordered, widened or shrunk. Match on `{:made_optional, name}` where you
+  matched on `{:group_added, name}`, which is gone.
+- A record field going required -> optional is now a break,
+  `{:made_optional, name}`: an optional field stopped covering a required
+  shape field when the read check was amended. Mark the field
+  `required?: true` in the redefinition wherever the record does promise the
+  value, and the redefinition stays compatible.
+- `StatifierDatamodel.Index` carries the document's declarations, so
+  `Index.type/2` answers `{:declared, name}` as well as one of the nine
+  types.
+
 ## [0.2.0] 2026-09-06
 
 A stricter read check, and nothing else. An optional record field no longer
