@@ -1011,13 +1011,13 @@ already uses for a repeated field name and the index for a repeated path.
 
 **(b) Member order is the reason's order; identity is member-set-wise.**
 The list is ordered because `{:missing, [field names]}` is rendered, and
-decision 8 names shape fields in declaration order; an inline shape names
-its unpromised members in member order for the same reason. Order is *not*
-part of identity: two inline shapes carrying the same member names with the
-same types and the same `required?` are the same type expression however
-they are ordered, so step 2 of decision 8 compares an inline shape by
-member set and not by term equality. This is the one place the arm's
-identity is not Elixir's.
+decision 5 gives a declaration an ordered field list so that step 3's
+names come out in it; an inline shape names its unpromised members in
+member order for the same reason. Order is *not* part of identity: two
+inline shapes carrying the same member names with the same types and the
+same `required?` are the same type expression however they are ordered, so
+step 2 of decision 8 compares an inline shape by member set and not by term
+equality. This is the one place the arm's identity is not Elixir's.
 
 **(c) An inline shape is built by a consumer, not written in a document.**
 `Types.parse/2` reads a binary spelling and is unchanged: a document's
@@ -1195,12 +1195,14 @@ one member down, and this package widens nothing to find it.
   member order are `:identical`, and a `{:missing, ...}` names members in
   the *expected* side's order.
 - **The consumers spell it, and this record decides nothing for them.**
-  statifier_blocks' typed environment and its ADR-0011 cite this spelling
-  for a compiler-assembled value, and statifier-ui reads whatever the
-  environment holds. What either package builds an inline shape *for*, when
-  it prefers a declaration, and what severity it assigns an unsatisfied read
-  are decisions in their own records, on this package's stance that an
-  unsatisfied read is a fact and not a verdict (decision 12).
+  statifier_blocks' typed environment is where a compiler-assembled value
+  acquires a type, and its ADR-0011 - which already takes its read check
+  from this record's decision 8 rather than defining a second one - will
+  cite this arm's spelling in an amendment of its own; statifier-ui reads
+  whatever the environment holds. What either package builds an inline
+  shape *for*, when it prefers a declaration, and what severity it assigns
+  an unsatisfied read are decisions in their own records, on this package's
+  stance that an unsatisfied read is a fact and not a verdict (decision 12).
 - **One question is opened, deliberately.** Whether a document may write an
   inline shape - a `type` key that is a map rather than a string - is not
   answered here, because neither embedder needs it and admitting it would
