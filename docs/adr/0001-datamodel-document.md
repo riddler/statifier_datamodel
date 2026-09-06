@@ -756,12 +756,14 @@ Two of the three questions "Open questions carried" left standing are
 answered here, and the third clause is a row decision 9's table got wrong
 once decision 8 was amended.
 
-**The hint.** `one_of` on an *entry* has always been a completion hint: it
-lists the values a host expects, an editor draws them as choices, and a value
-control fed from it still admits anything the author types (decision 11 and
-`Document.declared_values/1` both say so in those words). Decision 9 read the
-same key on a *declaration field* as a value group that narrows the field, so
-adding one was breaking and shrinking one was breaking too. One key meaning
+**The hint.** `one_of` on an *entry* is read as a completion hint: it lists
+the values a host expects, an editor draws them as choices, and a value
+control fed from it still admits anything the author types -
+`Document.declared_values/1` says exactly that, and the Consequences section
+above calls decision 11's `{:one_of, values}` projection a *use* of the hint
+that does not promote it. Decision 9 read the same key on a *declaration
+field* as a value group that narrows the field, so adding one was breaking
+and shrinking one was breaking too. One key meaning
 two different things in one document is the defect: an author who narrows a
 suggestion list gets a compatibility break for a suggestion, and a consumer
 reading a field's `one_of` cannot tell from the key whether it is a promise.
