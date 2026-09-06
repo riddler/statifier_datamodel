@@ -19,19 +19,6 @@
 # There is deliberately no .credo.exs either: credo's own defaults under
 # --strict are the gate until this package has a reason to deviate from one.
 #
-# Recorded deviation from the satellite shape - coveralls.json carries
-# "treat_no_relevant_lines_as_covered": true on top of the shared
-# minimum_coverage: 90. The satellites do not need it because they all have
-# executable code; this package is currently a moduledoc-only scaffold, so
-# excoveralls sees zero relevant lines and, by default, reports that as 0.0%
-# rather than "nothing to cover" - which would fail the 90% bar with no way
-# to fix it short of lowering the bar. The flag keeps the threshold at the
-# fleet's 90% and only changes the empty-file case. Drop it in the campaign
-# that moves the index and the types here: from then on the package has real
-# code, the premise lapses, and strict parity with the satellites is the
-# default. Carried from the same deviation statifier_blocks and encryptor_ecto
-# recorded at their own scaffold stage.
-
 [
   format: [
     check: true
