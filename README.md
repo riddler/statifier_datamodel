@@ -3,52 +3,18 @@
 The datamodel document and what can be decided from it, with no dependency on
 the block editor, the compiler, or the UI.
 
-**Status: scaffold.** Nothing is implemented yet. The package skeleton is in
-place; the contract is recorded in
-[ADR-0001](https://github.com/riddler/statifier_datamodel/blob/main/docs/adr/0001-datamodel-document.md)
-and the code lands behind it.
-
-## The charter
-
 A datamodel document is a host's typed description of the data universe an
 author writes conditions against. It has three scopes - `global`, `local`,
 `event` - each carrying entries with a `name`, an absolute dotted `path`, a
 `type` and a `label`; and a `types` key of named record and shape
 declarations, each with ordered `fields` carrying `name`, `type` and
-`required?`. This package is the reader of that document and the home of every
-question that can be answered from the document alone:
+`required?`. This package is the reader of that document, and the home of
+every question that can be answered from the document alone.
 
-- **The index.** The path/type index over an admitted document, and its
-  projection to the declared-path set: every entry contributes its own path
-  at every nesting depth, and nothing else does.
-
-- **Declared types and the read check.** A record type is a fact about what a
-  write puts at a path; a shape is a constraint a read places on one. The
-  read check is identity first, and then a record read as a shape is admitted
-  when the record's fields cover the shape's required set.
-
-- **Compatibility.** Whether a redefined declaration still satisfies every
-  read that assumed the one it replaces - every way the new declaration
-  narrows the old one, listed.
-
-- **Coverage.** The required field names of a shape that a map does not fill,
-  in declaration order.
-
-- **Value kinds for an expression editor.** The projection of the index to
-  per-path value kinds - a kind, a list of a kind, or an enumeration - which
-  is what an expression editor consumes to offer the right operators and the
-  right value control for a path.
-
-Every function is pure and total over an admitted document. What is
-deliberately not here: the environment walk over a block document, which needs
-the block tree and stays in
-[statifier_blocks](https://github.com/riddler/statifier_blocks); anything that
-renders, which is [statifier_ui](https://github.com/riddler/statifier-ui)'s;
-and any runtime enforcement. Both of those packages depend on this one, and
-this one depends on nothing in the family.
-
-The document shape and the index are re-homed here from statifier_blocks'
-ADR-0006; this repository's ADR-0001 is the record of the re-homing.
+The contract is
+[ADR-0001](https://github.com/riddler/statifier_datamodel/blob/main/docs/adr/0001-datamodel-document.md);
+the document shape and the index are re-homed here from statifier_blocks'
+ADR-0006, and ADR-0001 is the record of the re-homing.
 
 ## Installation
 
@@ -61,6 +27,218 @@ end
 ```
 
 Not yet published to Hex.
+
+## What it answers
+
+Every example below is a doctest: `test/readme_test.exs` runs this file, so a
+snippet that stops being true fails the suite. The worked domain is
+credit-card processing, as it is everywhere in this family.
+
+### The index
+
+`StatifierDatamodel.Index.index/1` admits a decoded document and returns the
+path/type index over it. Every entry contributes its own path at every
+nesting depth, in document order, and nothing else does. Admission is a total
+normalizer: a map carrying a list under `"scopes"` is a document, and
+anything else is `nil` - so *not a document* stays distinguishable from *a
+document declaring nothing*.
+
+    iex> alias StatifierDatamodel.Index
+    iex> document = %{
+    ...>   "version" => 1,
+    ...>   "scopes" => [
+    ...>     %{"scope" => "local", "label" => "Chart-local", "entries" => [
+    ...>       %{"name" => "amount_cents", "path" => "amount_cents",
+    ...>         "type" => "integer", "label" => "Amount (minor units)"},
+    ...>       %{"name" => "card", "path" => "card", "type" => "object",
+    ...>         "label" => "Card", "fields" => [
+    ...>           %{"name" => "brand", "path" => "card.brand", "type" => "string",
+    ...>             "label" => "Brand",
+    ...>             "one_of" => ["visa", "mastercard", "amex"]},
+    ...>           %{"name" => "expires_on", "path" => "card.expires_on",
+    ...>             "type" => "date", "label" => "Expires on"}]}]}]}
+    iex> index = Index.index(document)
+    iex> index.order
+    ["amount_cents", "card", "card.brand", "card.expires_on"]
+    iex> Index.type(index, "card.expires_on")
+    :date
+    iex> Index.declared?(index, "card.cvv")
+    false
+    iex> Index.index(["amount_cents"])
+    nil
+
+### The declared paths
+
+`StatifierDatamodel.Document` is the shorthand for a consumer that holds a
+document rather than an index: it admits its argument through the index and
+answers totally either way. `declared_paths/1` is the projection an editor's
+undeclared-path advisory reads; an empty document projects to an empty set,
+and only a non-document is `nil`.
+
+    iex> alias StatifierDatamodel.Document
+    iex> document = %{"scopes" => [%{"scope" => "local", "entries" => [
+    ...>   %{"name" => "card", "path" => "card", "type" => "object", "fields" => [
+    ...>     %{"name" => "last4", "path" => "card.last4", "type" => "string"},
+    ...>     %{"name" => "brand", "path" => "card.brand", "type" => "string",
+    ...>       "one_of" => ["visa", "mastercard", "amex"]}]}]}]}
+    iex> Document.declared_paths(document)
+    MapSet.new(["card", "card.brand", "card.last4"])
+    iex> Document.candidates_under(document, "card")
+    ["card.last4", "card.brand"]
+    iex> Document.declared_values(document)
+    %{"card.brand" => ["visa", "mastercard", "amex"]}
+    iex> Document.declared_paths(%{"scopes" => []})
+    MapSet.new([])
+    iex> Document.declared_paths(["card"])
+    nil
+
+### The declared types and the read check
+
+A **record** is a fact about what a write puts at a path; a **shape** is a
+constraint a read places on one. `StatifierDatamodel.Declarations` indexes
+the document's `types` key to `name -> declaration`, and
+`StatifierDatamodel.Types` decides the read check over it: unknown is
+permissive both ways, then identity, then a record read as a shape is
+admitted when the record's fields cover the shape's required set. Identity is
+nominal - there is no structural widening between two records.
+`satisfies/3` returns the reason a consumer renders; `satisfies?/3` is the
+same check as a boolean.
+
+    iex> alias StatifierDatamodel.{Declarations, Types}
+    iex> declarations = Declarations.from_document(%{"types" => [
+    ...>   %{"name" => "cards.credit_txn", "kind" => "record",
+    ...>     "label" => "Credit transaction", "fields" => [
+    ...>       %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+    ...>       %{"name" => "currency", "type" => "string", "required?" => true},
+    ...>       %{"name" => "authorized_at", "type" => "datetime", "required?" => true}]},
+    ...>   %{"name" => "Settleable", "kind" => "shape", "label" => "Settleable",
+    ...>     "fields" => [
+    ...>       %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+    ...>       %{"name" => "currency", "type" => "string", "required?" => true},
+    ...>       %{"name" => "authorized_at", "type" => "datetime", "required?" => true}]},
+    ...>   %{"name" => "Refundable", "kind" => "shape", "label" => "Refundable",
+    ...>     "fields" => [
+    ...>       %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+    ...>       %{"name" => "settled_at", "type" => "datetime", "required?" => true}]}]})
+    iex> Types.satisfies(declarations, {:declared, "cards.credit_txn"}, {:declared, "Settleable"})
+    :covers
+    iex> Types.satisfies(declarations, {:declared, "cards.credit_txn"}, {:declared, "Refundable"})
+    {:missing, ["settled_at"]}
+    iex> Types.satisfies?(declarations, {:declared, "cards.credit_txn"}, {:declared, "Refundable"})
+    false
+    iex> Types.satisfies(declarations, :date, :date)
+    :identical
+
+### Compatibility of a redefined declaration
+
+`StatifierDatamodel.Compatibility.breaks/2` is given the declaration a name
+had and the declaration replacing it, and lists every way the new one narrows
+the old one - every reason a read that held under the old might not hold
+under the new - ordered by field name. The list is empty when the
+redefinition takes nothing away; a name declared on neither side is `:error`,
+never an empty list.
+
+    iex> alias StatifierDatamodel.{Compatibility, Declarations}
+    iex> was = Declarations.from_document(%{"types" => [
+    ...>   %{"name" => "cards.credit_txn", "kind" => "record",
+    ...>     "label" => "Credit transaction", "fields" => [
+    ...>       %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+    ...>       %{"name" => "currency", "type" => "string", "required?" => true},
+    ...>       %{"name" => "authorized_at", "type" => "datetime", "required?" => true}]}]})
+    iex> now = Declarations.from_document(%{"types" => [
+    ...>   %{"name" => "cards.credit_txn", "kind" => "record",
+    ...>     "label" => "Credit transaction", "fields" => [
+    ...>       %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+    ...>       %{"name" => "currency", "type" => "string", "required?" => false}]}]})
+    iex> {:ok, old} = Declarations.fetch(was, "cards.credit_txn")
+    iex> {:ok, new} = Declarations.fetch(now, "cards.credit_txn")
+    iex> Compatibility.breaks(old, new)
+    [{:field_removed, "authorized_at"}]
+    iex> Compatibility.breaks(old, old)
+    []
+    iex> Compatibility.breaks(nil, nil)
+    :error
+
+Dropping `authorized_at` breaks; relaxing `currency` from required to
+optional does not, because this answers *may a reader keep reading*, not
+*did anything change*.
+
+### Coverage of a map against a shape
+
+`StatifierDatamodel.Coverage.missing/3` returns the `name` of every required
+field of a shape that a map does not fill, in declaration order. "Fill" is
+presence of the key with a non-`nil` value; the value's type is the
+expression language's question, not this one's. A name that is not declared,
+or that is a record rather than a shape, is `:error`.
+
+    iex> alias StatifierDatamodel.{Coverage, Declarations}
+    iex> declarations = Declarations.from_document(%{"types" => [
+    ...>   %{"name" => "Settleable", "kind" => "shape", "label" => "Settleable",
+    ...>     "fields" => [
+    ...>       %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+    ...>       %{"name" => "currency", "type" => "string", "required?" => true},
+    ...>       %{"name" => "authorized_at", "type" => "datetime", "required?" => true}]},
+    ...>   %{"name" => "cards.card", "kind" => "record", "label" => "Card",
+    ...>     "fields" => [
+    ...>       %{"name" => "last4", "type" => "string", "required?" => true}]}]})
+    iex> Coverage.missing(declarations, "Settleable", %{"amount_cents" => 4200, "currency" => "USD"})
+    {:ok, ["authorized_at"]}
+    iex> Coverage.missing(declarations, "Settleable", %{"currency" => nil})
+    {:ok, ["amount_cents", "currency", "authorized_at"]}
+    iex> Coverage.missing(declarations, "cards.card", %{})
+    :error
+
+### Value kinds for an expression editor
+
+`StatifierDatamodel.Index.path_types/1` projects the index to
+`%{path => kind | {:list, kind} | {:one_of, values}}`, in the expression
+language's own vocabulary: `integer` and `decimal` are both `:number`, a
+`list` with a scalar `item_type` is `{:list, kind}`, and a drawable `one_of`
+wins over the kind. An `object`, a `list` with no usable `item_type` and an
+unknown type are **absent** from the map - absence means unknown, not wrong,
+and an editor handed the map treats a path it does not contain exactly as it
+treats every path today.
+
+    iex> alias StatifierDatamodel.Index
+    iex> %{"scopes" => [%{"scope" => "local", "entries" => [
+    ...>   %{"path" => "amount_cents", "type" => "integer"},
+    ...>   %{"path" => "risk_reasons", "type" => "list", "item_type" => "string"},
+    ...>   %{"path" => "card", "type" => "object", "fields" => [
+    ...>     %{"path" => "card.brand", "type" => "string",
+    ...>       "one_of" => ["visa", "mastercard", "amex"]},
+    ...>     %{"path" => "card.expires_on", "type" => "date"}]}]}]}
+    ...> |> Index.index()
+    ...> |> Index.path_types()
+    %{
+      "amount_cents" => :number,
+      "risk_reasons" => {:list, :string},
+      "card.brand" => {:one_of, ["visa", "mastercard", "amex"]},
+      "card.expires_on" => :date
+    }
+
+## What is not here
+
+Every function is pure and total over an admitted document, and returns a
+fact - a set, an index, a boolean, a list of names, a map. Nothing here
+produces a finding, a severity or a verdict: an undeclared path is unknown,
+not wrong, and an unsatisfied read is something a consumer assigns a severity
+to in its own record.
+
+What is deliberately elsewhere: the environment walk over a block document,
+which needs the block tree and stays in
+[statifier_blocks](https://github.com/riddler/statifier_blocks); anything
+that renders, which is
+[statifier_ui](https://github.com/riddler/statifier-ui)'s; and any runtime
+enforcement, which no record in the family has asked for.
+
+## Who takes this
+
+statifier_blocks reads the document through this package today, for the typed
+environment's read check. statifier_ui takes `path_types/1`'s map as the
+expression editor's assign in a later release. Neither takes the other for
+the document, and this package depends on nothing in the family - that
+property is the whole reason it exists, and a runtime dependency added here
+is a decision to record.
 
 ## License
 

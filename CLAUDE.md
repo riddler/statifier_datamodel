@@ -147,9 +147,10 @@ The document shape and the index are re-homed here from statifier_blocks'
 ADR-0006 (`sb-ADR-0006`, accepted 2026-08-29); this repository's ADR-0001 is
 the record of the re-homing and adds the `types` key.
 
-The index and the document-level reads are implemented; the declared types,
-the read check, compatibility and coverage are not yet, so several of the
-conventions below are still inherited rather than demonstrated.
+The whole surface is implemented: the index and the document-level reads, the
+declared types and the read check, compatibility, coverage, and the projection
+to per-path value kinds. README.md is the reference, and every example on it
+is a doctest.
 
 Always refer to state machines as **state charts**, as statifier-ex does.
 
@@ -183,9 +184,9 @@ Full `mix quality` must be green before any commit. The format stage runs in
 check mode (`format: [check: true]` in `.quality.exs`): drift fails the gate
 and nothing is rewritten, so run `mix format` yourself before committing.
 `.quality.exs` records why this gate is deliberately smaller than
-statifier-ex's. `coveralls.json` carries the fleet's 90% floor and nothing
-else: the scaffold-stage deviation it used to carry lapsed when the package
-gained executable code.
+statifier-ex's. `coveralls.json` carries the fleet's 90% floor and a skip for
+`test/support/`: the scaffold-stage deviation it used to carry lapsed when
+the package gained executable code.
 
 <!-- usage-rules-start -->
 ## ExQuality (`mix quality`)

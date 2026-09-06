@@ -58,9 +58,12 @@ defmodule StatifierDatamodel.MixProject do
       # the declared types and the read check, and what is decided across two
       # declarations or between a declaration and a value. Order matters:
       # ex_doc assigns each module to the first group whose pattern matches.
+      # `StatifierDatamodel` itself matches none of them on purpose - the root
+      # module is the package's own overview and belongs above the seams, not
+      # inside one of them.
       groups_for_modules: [
         "Document and index": [
-          ~r/^StatifierDatamodel\.(Document|Index|Entry)($|\.)/
+          ~r/^StatifierDatamodel\.(Document|Index)($|\.)/
         ],
         "Declared types": [
           ~r/^StatifierDatamodel\.(Types|Declarations)($|\.)/
