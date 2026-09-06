@@ -6,7 +6,10 @@ defmodule StatifierDatamodel.TypesTest do
   The record's worked shape carries the pair the decision is argued on:
   `cards.credit_txn` covers `Settleable` and does not cover `Refundable`.
   Both are transcribed from the record below and the two assertions are the
-  record's own arithmetic, not the implementation's.
+  record's own arithmetic, not the implementation's. Decision 8 as amended
+  2026-09-06 adds a third: the same pair with `authorized_at` optional on the
+  record no longer covers, and names that field the way an absent one is
+  named.
   """
 
   use ExUnit.Case, async: true
@@ -77,6 +80,29 @@ defmodule StatifierDatamodel.TypesTest do
 
   defp declarations(types) do
     Declarations.from_document(%{"version" => 1, "scopes" => [], "types" => types})
+  end
+
+  # The worked shape with one of `cards.credit_txn`'s fields made optional,
+  # which is the case decision 8's amendment is argued on: the document still
+  # declares the field, and no longer promises it.
+  defp worked_with_optional(field_name) do
+    types =
+      Enum.map(@worked_document["types"], fn
+        %{"name" => "cards.credit_txn", "fields" => fields} = declaration ->
+          %{
+            declaration
+            | "fields" =>
+                Enum.map(fields, fn
+                  %{"name" => ^field_name} = field -> Map.delete(field, "required?")
+                  field -> field
+                end)
+          }
+
+        declaration ->
+          declaration
+      end)
+
+    Declarations.from_document(%{@worked_document | "types" => types})
   end
 
   describe "the type expression grammar" do
@@ -266,6 +292,151 @@ defmodule StatifierDatamodel.TypesTest do
                {:declared, "cards.credit_txn"},
                {:declared, "Refundable"}
              ) == false
+    end
+
+    # sabotage: dropped the `%{required?: false}` clause of `covered?/4`, so
+    # the optional field covered again and the `{:missing, _}` assertion went
+    # red (verified).
+    test "step 3: an optional record field does not cover a required shape field" do
+      declarations = worked_with_optional("authorized_at")
+
+      assert Types.satisfies(
+               declarations,
+               {:declared, "cards.credit_txn"},
+               {:declared, "Settleable"}
+             ) == {:missing, ["authorized_at"]}
+
+      assert Types.satisfies?(
+               declarations,
+               {:declared, "cards.credit_txn"},
+               {:declared, "Settleable"}
+             ) == false
+
+      assert Types.satisfies(worked(), {:declared, "cards.credit_txn"}, {:declared, "Settleable"}) ==
+               :covers
+    end
+
+    # sabotage: appended a marker to the name of a field the record declares
+    # but leaves optional, so the reason told it apart from an absent one and
+    # this went red - the amendment's "one reason, and the names list is what
+    # a consumer renders" (verified).
+    test "absent and present-but-optional are the same reason, named the same way" do
+      absent =
+        declarations([
+          %{
+            "name" => "cards.credit_txn",
+            "kind" => "record",
+            "fields" => [%{"name" => "amount_cents", "type" => "integer", "required?" => true}]
+          },
+          %{
+            "name" => "Settleable",
+            "kind" => "shape",
+            "fields" => [
+              %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+              %{"name" => "authorized_at", "type" => "datetime", "required?" => true}
+            ]
+          }
+        ])
+
+      optional =
+        declarations([
+          %{
+            "name" => "cards.credit_txn",
+            "kind" => "record",
+            "fields" => [
+              %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+              %{"name" => "authorized_at", "type" => "datetime"}
+            ]
+          },
+          %{
+            "name" => "Settleable",
+            "kind" => "shape",
+            "fields" => [
+              %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+              %{"name" => "authorized_at", "type" => "datetime", "required?" => true}
+            ]
+          }
+        ])
+
+      reason = {:missing, ["authorized_at"]}
+
+      assert Types.satisfies(absent, {:declared, "cards.credit_txn"}, {:declared, "Settleable"}) ==
+               reason
+
+      assert Types.satisfies(optional, {:declared, "cards.credit_txn"}, {:declared, "Settleable"}) ==
+               reason
+    end
+
+    # sabotage: dropped the `field.required?` filter from the `covers/4`
+    # comprehension, so every shape field was consulted and this went red -
+    # the amendment narrows one clause and leaves "a field the shape marks
+    # optional is not consulted at all" standing (verified).
+    test "an optional shape field is still not consulted, whatever the record says" do
+      declarations =
+        declarations([
+          %{
+            "name" => "cards.credit_txn",
+            "kind" => "record",
+            "fields" => [
+              %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+              %{"name" => "risk_reasons", "type" => "list", "item_type" => "string"}
+            ]
+          },
+          %{
+            "name" => "Settleable",
+            "kind" => "shape",
+            "fields" => [
+              %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+              %{"name" => "risk_reasons", "type" => "list"},
+              %{"name" => "currency", "type" => "string"}
+            ]
+          }
+        ])
+
+      assert Types.satisfies(
+               declarations,
+               {:declared, "cards.credit_txn"},
+               {:declared, "Settleable"}
+             ) == :covers
+    end
+
+    # sabotage: took a field whose type names a declaration as covering
+    # without descending into it, so the nested record's optional field
+    # stopped being read and the outer `{:missing, ["card"]}` assertion went
+    # red (verified).
+    test "the record side's required? is read at every depth of the check" do
+      declarations =
+        declarations([
+          %{
+            "name" => "cards.card",
+            "kind" => "record",
+            "fields" => [%{"name" => "last4", "type" => "string"}]
+          },
+          %{
+            "name" => "CardLike",
+            "kind" => "shape",
+            "fields" => [%{"name" => "last4", "type" => "string", "required?" => true}]
+          },
+          %{
+            "name" => "cards.credit_txn",
+            "kind" => "record",
+            "fields" => [%{"name" => "card", "type" => "cards.card", "required?" => true}]
+          },
+          %{
+            "name" => "Settleable",
+            "kind" => "shape",
+            "fields" => [%{"name" => "card", "type" => "CardLike", "required?" => true}]
+          }
+        ])
+
+      assert Types.satisfies(declarations, {:declared, "cards.card"}, {:declared, "CardLike"}) ==
+               {:missing, ["last4"]}
+
+      assert Types.satisfies(
+               declarations,
+               {:declared, "cards.credit_txn"},
+               {:declared, "Settleable"}
+             ) == {:missing, ["card"]}
     end
 
     # sabotage: collected the missing names with `MapSet.new/1`, losing the

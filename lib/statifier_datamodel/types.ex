@@ -32,11 +32,24 @@ defmodule StatifierDatamodel.Types do
     3. `held` names a **record** and `expected` names a **shape** -> satisfied
        when the record's fields cover the shape's required set (`:covers`):
        for every field of the shape with `required?: true`, the record has a
-       field of the same `name` whose type satisfies the shape field's type
-       under this same check. Otherwise `{:missing, names}`, in the shape's
-       own field order - a field the record does not have and a field whose
-       type does not satisfy are the same failure, and both are named.
+       field of the same `name`, itself `required?: true`, whose type
+       satisfies the shape field's type under this same check. Otherwise
+       `{:missing, names}`, in the shape's own field order - a field the
+       record does not have, a field the record declares optional, and a
+       field whose type does not satisfy are the same failure, and all are
+       named. A record field the shape does not name is ignored, and a shape
+       field the shape marks optional is not consulted at all.
     4. otherwise -> `:not_assignable`.
+
+  Step 3 reads both sides' `required?`, on decision 8 as amended
+  2026-09-06. A record that declares a field optional has not promised the
+  value, and a shape that marks the field required cannot proceed without
+  it, so the record does not cover the shape. That failure carries the same
+  `{:missing, names}` the absent field carries, and the vocabulary does not
+  grow: *missing* means the record does not promise the field, whichever way
+  it fails to. A consumer that needs to tell absent from present-but-optional
+  reads the record's declaration for the named field; nothing this relation
+  decides turns on the difference.
 
   That is the whole relation, and the shape of what it leaves out is the
   point. There is no record-into-record structural widening: identity is
@@ -228,6 +241,27 @@ defmodule StatifierDatamodel.Types do
       :identical
       iex> Types.satisfies(declarations, {:declared, "cards.credit_txn"}, :unknown)
       :unknown
+
+  A field the record declares optional is missing from the read the same way
+  an absent one is: the record has not promised the value, and the shape
+  requires it.
+
+      iex> alias StatifierDatamodel.{Declarations, Types}
+      iex> optional_authorized_at = fn required? -> Declarations.from_document(%{"types" => [
+      ...>   %{"name" => "cards.credit_txn", "kind" => "record", "label" => "Credit transaction",
+      ...>     "fields" => [
+      ...>       %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+      ...>       %{"name" => "currency", "type" => "string", "required?" => true},
+      ...>       %{"name" => "authorized_at", "type" => "datetime", "required?" => required?}]},
+      ...>   %{"name" => "Settleable", "kind" => "shape", "label" => "Settleable",
+      ...>     "fields" => [
+      ...>       %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+      ...>       %{"name" => "currency", "type" => "string", "required?" => true},
+      ...>       %{"name" => "authorized_at", "type" => "datetime", "required?" => true}]}]}) end
+      iex> Types.satisfies(optional_authorized_at.(false), {:declared, "cards.credit_txn"}, {:declared, "Settleable"})
+      {:missing, ["authorized_at"]}
+      iex> Types.satisfies(optional_authorized_at.(true), {:declared, "cards.credit_txn"}, {:declared, "Settleable"})
+      :covers
   """
   @spec satisfies(Declarations.t(), t(), t()) :: reason()
   def satisfies(declarations, held, expected) do
@@ -296,6 +330,11 @@ defmodule StatifierDatamodel.Types do
           MapSet.t({String.t(), String.t()})
         ) :: boolean()
   defp covered?(_declarations, nil, _required, _seen), do: false
+
+  # An optional record field does not promise the value, so it does not cover
+  # a required shape field - the same failure as an absent one, and named the
+  # same way (decision 8 as amended 2026-09-06).
+  defp covered?(_declarations, %{required?: false}, _required, _seen), do: false
 
   defp covered?(declarations, held, required, seen) do
     decide(declarations, field_type(held), field_type(required), seen) in [
