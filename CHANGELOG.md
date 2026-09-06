@@ -10,6 +10,27 @@ fragment in [`changelog.d/`](changelog.d/README.md); the fragments are assembled
 into a version section at release. See that README for the format and for when a
 change warrants an entry at all.
 
+## [0.2.0] 2026-09-06
+
+A stricter read check, and nothing else. An optional record field no longer
+covers a required shape field: step 3 of ADR-0001's decision 8 now reads the
+record side's `required?` as well as the shape side's, so a document that
+declared a field optional and leaned on the looser reading gets `{:missing,
+[name]}` where the check used to answer satisfied. That is a narrowing of
+what the read check accepts and so a breaking change for a document holding
+the looser reading, which is why this release is a MINOR under `0.x`. The
+ruling is recorded as the amendment to sd-ADR-0001 that closes the third of
+the questions the record carried; that section stands at proposed until it
+is flipped separately.
+
+### Changed
+
+- The read check is stricter: a record field the document declares optional
+  no longer covers a shape field the document marks required, so a read that
+  was satisfied now answers `{:missing, [name]}`. Breaking for a document
+  that relied on the looser reading; the fix is one key, `"required?": true`
+  on the record's field wherever the record does promise the value.
+
 ## [0.1.0] 2026-09-06
 
 The first release. StatifierDatamodel is the reader of a datamodel document
