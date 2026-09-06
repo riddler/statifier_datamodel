@@ -10,7 +10,7 @@ defmodule StatifierDatamodel.Compatibility do
   and a name declared on neither side is an `:error` rather than an empty
   list: nothing was redefined, so there is nothing to answer.
 
-  ## The eight rows
+  ## The six rows
 
   The record's table, kept literally. Five ways a redefinition narrows:
 
@@ -20,47 +20,55 @@ defmodule StatifierDatamodel.Compatibility do
   | a field's `type` changed | breaking | `{:type_changed, name}` |
   | a field optional -> required | breaking | `{:made_required, name}` |
   | a required field added | breaking | `{:required_added, name}` |
-  | a field's `one_of` value group added | breaking | `{:group_added, name}` |
+  | a field required -> optional | breaking | `{:made_optional, name}` |
 
-  and three ways it does not:
+  and one way it does not:
 
   | Change | Verdict |
   |---|---|
   | an optional field added | compatible |
-  | a field required -> optional | compatible |
-  | a field's `one_of` value group removed | compatible |
 
   The asymmetry is the whole point: this answers *may a reader keep reading*,
-  not *did anything change*. Widening a declaration - more fields to have,
-  fewer to supply, more values admitted - takes nothing away from a read
-  written against the old one.
+  not *did anything change*. A declaration that gains an optional field takes
+  nothing away from a read written against the old one.
 
-  ## A value group compares by value, with order ignored
+  ## Why relaxing a field is a break
 
-  A field's `one_of` is compared as a set, so reordering one is no change.
-  A group is **added** when the new declaration constrains where the old one
-  did not, and also when the new group admits fewer values than the old: a
-  value a document could carry before and cannot now is the same loss of a
-  read either way, which is why the record calls shrinking a group breaking
-  on the same reasoning as a type change. A group removed, or widened,
-  admits everything it did before and is compatible.
+  A record field that goes required -> optional stops promising its value,
+  and the read check stopped reading an optional record field as covering a
+  required shape field when decision 8 was amended on 2026-09-06. A read that
+  held under the old declaration therefore does not hold under the new, which
+  is the one question this module answers. The row was compatible while step
+  3 ignored the record side's `required?`; the amendment of 2026-09-06 to
+  decision 9 moves it.
+
+  ## A `one_of` is a completion hint, never a break
+
+  A field's `one_of` lists the values a host expects and an editor draws as
+  choices. It is not a constraint: a value control fed from it still admits
+  anything the author types, and nothing in this package reads it as a
+  promise. Adding one, removing one, reordering one, widening one and
+  shrinking one are therefore all compatible, and the key means on a
+  declaration field exactly what it means on an entry (decision 9 as amended
+  2026-09-06).
 
   ## What is not a break
 
   A field's `item_type` is not compared, for the same reason the read check
   does not descend into it: `list` satisfies `list`, and narrowing that is a
-  decision no record has taken. A changed `label`, a changed `note` and a
-  changed `kind` are not among the record's five either - `label` and `note`
-  carry no contract, and a name that changes kind is a redefinition this
-  vocabulary has no word for. Nothing here raises: an input that is not a
-  declaration is read as *not declared on that side*.
+  decision no record has taken. A changed `label`, a changed `note`, a
+  changed `one_of` and a changed `kind` are not among the record's five
+  either - `label` and `note` carry no contract, `one_of` is a hint, and a
+  name that changes kind is a redefinition this vocabulary has no word for.
+  Nothing here raises: an input that is not a declaration is read as *not
+  declared on that side*.
 
   ## Deterministic order
 
-  Breaks are ordered by field name, then by reason in the order the record
-  lists them, so two runs over the same pair produce the same list and a
-  caller may compare two lists directly. One field can carry several breaks:
-  a field that changed type and became required at once names both.
+  Breaks are ordered by field name, then by reason in the order the record's
+  table lists them, so two runs over the same pair produce the same list and
+  a caller may compare two lists directly. One field can carry several
+  breaks: a field that changed type and was relaxed at once names both.
   """
 
   alias StatifierDatamodel.Declarations
@@ -72,13 +80,13 @@ defmodule StatifierDatamodel.Compatibility do
   @type break ::
           {:field_removed, String.t()}
           | {:type_changed, String.t()}
-          | {:required_added, String.t()}
           | {:made_required, String.t()}
-          | {:group_added, String.t()}
+          | {:required_added, String.t()}
+          | {:made_optional, String.t()}
 
-  # The record's own order, which is the tie-break between two breaks on one
-  # field name.
-  @reasons [:field_removed, :type_changed, :required_added, :made_required, :group_added]
+  # The record's own table order, which is the tie-break between two breaks
+  # on one field name.
+  @reasons [:field_removed, :type_changed, :made_required, :required_added, :made_optional]
 
   @doc """
   Every way `new` narrows `old`, ordered by field name then by reason.
@@ -101,7 +109,26 @@ defmodule StatifierDatamodel.Compatibility do
       iex> Compatibility.breaks(old, new)
       [{:required_added, "expires_on"}, {:field_removed, "last4"}]
 
-  A redefinition that only widens takes nothing away:
+  A redefinition that only adds an optional field takes nothing away, and
+  neither does one that only edits a completion hint:
+
+      iex> alias StatifierDatamodel.{Compatibility, Declarations}
+      iex> was = Declarations.from_document(%{"types" => [
+      ...>   %{"name" => "cards.card", "kind" => "record", "fields" => [
+      ...>     %{"name" => "brand", "type" => "string", "required?" => true,
+      ...>       "one_of" => ["visa", "mastercard", "amex"]}]}]})
+      iex> now = Declarations.from_document(%{"types" => [
+      ...>   %{"name" => "cards.card", "kind" => "record", "fields" => [
+      ...>     %{"name" => "brand", "type" => "string", "required?" => true,
+      ...>       "one_of" => ["visa"]},
+      ...>     %{"name" => "last4", "type" => "string"}]}]})
+      iex> {:ok, old} = Declarations.fetch(was, "cards.card")
+      iex> {:ok, new} = Declarations.fetch(now, "cards.card")
+      iex> Compatibility.breaks(old, new)
+      []
+
+  Relaxing a required field does take something away: the record stops
+  promising the value, so a shape that requires it stops being covered.
 
       iex> alias StatifierDatamodel.{Compatibility, Declarations}
       iex> was = Declarations.from_document(%{"types" => [
@@ -109,12 +136,11 @@ defmodule StatifierDatamodel.Compatibility do
       ...>     %{"name" => "brand", "type" => "string", "required?" => true}]}]})
       iex> now = Declarations.from_document(%{"types" => [
       ...>   %{"name" => "cards.card", "kind" => "record", "fields" => [
-      ...>     %{"name" => "brand", "type" => "string"},
-      ...>     %{"name" => "last4", "type" => "string"}]}]})
+      ...>     %{"name" => "brand", "type" => "string", "required?" => false}]}]})
       iex> {:ok, old} = Declarations.fetch(was, "cards.card")
       iex> {:ok, new} = Declarations.fetch(now, "cards.card")
       iex> Compatibility.breaks(old, new)
-      []
+      [{:made_optional, "brand"}]
 
       iex> StatifierDatamodel.Compatibility.breaks(nil, nil)
       :error
@@ -163,7 +189,8 @@ defmodule StatifierDatamodel.Compatibility do
     kept ++ added
   end
 
-  # A field both declarations carry: the three ways it can narrow.
+  # A field both declarations carry: the three ways it can narrow. Its
+  # `one_of` is not among them - a hint narrows nothing.
   @spec changes(Declarations.field(), Declarations.field()) :: [break()]
   defp changes(was, now) do
     type_changed = if was.type != now.type, do: [{:type_changed, was.name}], else: []
@@ -171,24 +198,11 @@ defmodule StatifierDatamodel.Compatibility do
     made_required =
       if not was.required? and now.required?, do: [{:made_required, was.name}], else: []
 
-    group_added =
-      if group_added?(was.one_of, now.one_of), do: [{:group_added, was.name}], else: []
+    made_optional =
+      if was.required? and not now.required?, do: [{:made_optional, was.name}], else: []
 
-    type_changed ++ made_required ++ group_added
+    type_changed ++ made_required ++ made_optional
   end
-
-  # A group is added when the new declaration admits a value the old one did
-  # not have to reject: no group at all admits everything, so gaining one
-  # narrows, and so does shrinking one. Order is ignored on both sides.
-  @spec group_added?(term(), term()) :: boolean()
-  defp group_added?(_was, nil), do: false
-  defp group_added?(nil, now) when is_list(now), do: true
-
-  defp group_added?(was, now) when is_list(was) and is_list(now) do
-    not MapSet.subset?(MapSet.new(was), MapSet.new(now))
-  end
-
-  defp group_added?(_was, _now), do: false
 
   @spec fields(Declarations.declaration() | nil) :: [Declarations.field()]
   defp fields(%{fields: fields}), do: fields

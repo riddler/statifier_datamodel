@@ -427,6 +427,226 @@ defmodule StatifierDatamodel.IndexTest do
     end
   end
 
+  describe "an entry typed by a declaration - ADR-0001 decisions 3, 6 and 7 as amended 2026-09-06" do
+    # The record's two declarations, nested one inside the other, so an
+    # expansion that stopped at the first level would be visible.
+    @types [
+      %{
+        "name" => "cards.credit_txn",
+        "kind" => "record",
+        "label" => "Credit transaction",
+        "fields" => [
+          %{
+            "name" => "amount_cents",
+            "type" => "integer",
+            "required?" => true,
+            "label" => "Amount (minor units)"
+          },
+          %{"name" => "card", "type" => "cards.card", "required?" => true},
+          %{"name" => "risk_reasons", "type" => "list", "item_type" => "string"}
+        ]
+      },
+      %{
+        "name" => "cards.card",
+        "kind" => "record",
+        "label" => "Card",
+        "fields" => [
+          %{
+            "name" => "brand",
+            "type" => "string",
+            "label" => "Brand",
+            "one_of" => ["visa", "mastercard", "amex"]
+          }
+        ]
+      }
+    ]
+
+    defp typed(entries, types \\ @types) do
+      Index.index(%{
+        "version" => 1,
+        "scopes" => [%{"scope" => "local", "entries" => entries}],
+        "types" => types
+      })
+    end
+
+    # sabotage: made `entry_type/2` answer `nil` for a name the closed set
+    # does not carry, as it did before the amendment - seven of this
+    # describe's nine tests went red and the entry contributed its own path
+    # alone (verified).
+    test "the entry's type is the declared name, and the declaration's fields expand beneath it" do
+      index = typed([%{"name" => "txn", "path" => "txn", "type" => "cards.credit_txn"}])
+
+      assert index.order == [
+               "txn",
+               "txn.amount_cents",
+               "txn.card",
+               "txn.card.brand",
+               "txn.risk_reasons"
+             ]
+
+      assert Index.type(index, "txn") == {:declared, "cards.credit_txn"}
+      assert Index.type(index, "txn.card") == {:declared, "cards.card"}
+      assert Index.type(index, "txn.amount_cents") == :integer
+      assert Index.type(index, "txn.card.brand") == :string
+    end
+
+    # sabotage: had `member/2` copy the parent entry's `example` and
+    # `sensitive?` onto every expanded path - the `nil` and `false`
+    # assertions went red, and a declaration would have been inventing keys
+    # it does not carry (verified).
+    test "an expanded path carries the field's keys, the entry's scope, and nothing invented" do
+      index =
+        typed([
+          %{
+            "name" => "txn",
+            "path" => "txn",
+            "type" => "cards.credit_txn",
+            "example" => "ignored",
+            "note" => "ignored",
+            "sensitive?" => true
+          }
+        ])
+
+      assert {:ok, brand} = Index.fetch(index, "txn.card.brand")
+      assert brand.name == "brand"
+      assert brand.label == "Brand"
+      assert brand.one_of == ["visa", "mastercard", "amex"]
+      assert brand.scope == :local
+      assert brand.depth == 2
+      assert brand.example == nil
+      assert brand.note == nil
+      assert brand.sensitive? == false
+
+      assert {:ok, %{depth: 1, item_type: :string, type: :list}} =
+               Index.fetch(index, "txn.risk_reasons")
+
+      # The entry's own flag is still read literally, per entry.
+      assert Index.sensitive_paths(index) == MapSet.new(["txn"])
+    end
+
+    # sabotage: dropped the `Map.get(@types, t)` arm from `entry_type/2` so
+    # the declarations were consulted first - this assertion went red and a
+    # document declaring `"string"` would have shadowed the scalar
+    # (verified).
+    test "the closed set wins over a declaration spelled the same way" do
+      types = [%{"name" => "string", "kind" => "record", "label" => "String", "fields" => []}]
+      index = typed([%{"path" => "note", "type" => "string"}], types)
+
+      assert Index.type(index, "note") == :string
+      assert index.order == ["note"]
+    end
+
+    # sabotage: made `entry_type/2` answer `{:declared, t}` for any string
+    # outside the closed set - this test and "a type outside the closed set
+    # normalizes to nil" both went red, and an entry typed by a name nothing
+    # declares would have claimed a declaration (verified).
+    test "a name the types key does not declare is unknown, and expands nothing" do
+      index = typed([%{"path" => "note", "type" => "cards.nothing"}])
+
+      assert Index.type(index, "note") == nil
+      assert index.order == ["note"]
+      assert Index.declared?(index, "note") == true
+    end
+
+    # sabotage: neutered the `MapSet.member?(seen, name)` guard in
+    # `expand/3` - this test hung on the self-referencing document and died
+    # of ExUnit's 60s timeout instead of answering, which is the totality
+    # the guard buys (verified).
+    test "a cycle between declarations discharges rather than recurring" do
+      types = [
+        %{
+          "name" => "cards.node",
+          "kind" => "record",
+          "label" => "Node",
+          "fields" => [
+            %{"name" => "brand", "type" => "string"},
+            %{"name" => "next", "type" => "cards.node"}
+          ]
+        }
+      ]
+
+      index = typed([%{"path" => "head", "type" => "cards.node"}], types)
+
+      assert index.order == ["head", "head.brand", "head.next"]
+      assert Index.type(index, "head.next") == {:declared, "cards.node"}
+    end
+
+    # sabotage: had `expand/3` run for a `list` entry too, so a declared
+    # `item_type` contributed element paths - the `order` assertion went red
+    # and decision 7's "a list contributes itself alone" would have been
+    # broken (verified).
+    test "a list entry's item_type may name a declaration and still expands nothing" do
+      index =
+        typed([%{"path" => "txns", "type" => "list", "item_type" => "cards.credit_txn"}])
+
+      assert index.order == ["txns"]
+      assert {:ok, %{item_type: {:declared, "cards.credit_txn"}}} = Index.fetch(index, "txns")
+      assert Index.path_types(index) == %{}
+    end
+
+    # sabotage: put the expansion ahead of the entry's own `fields` in
+    # `entry/4` - this assertion went red, and a path a host wrote out
+    # explicitly would have lost to the one derived from the declaration
+    # (verified).
+    test "an entry that names a declaration and carries fields contributes both, its own first" do
+      index =
+        typed([
+          %{
+            "path" => "txn",
+            "type" => "cards.credit_txn",
+            "fields" => [
+              %{"path" => "txn.amount_cents", "type" => "string", "label" => "Written out"},
+              %{"path" => "txn.reference", "type" => "string"}
+            ]
+          }
+        ])
+
+      assert index.order == [
+               "txn",
+               "txn.amount_cents",
+               "txn.reference",
+               "txn.card",
+               "txn.card.brand",
+               "txn.risk_reasons"
+             ]
+
+      assert {:ok, %{type: :string, label: "Written out"}} =
+               Index.fetch(index, "txn.amount_cents")
+    end
+
+    # sabotage: dropped `declarations:` from the struct `index/1` builds, so
+    # the index carried `%{}` - the declaration assertions went red
+    # (verified).
+    test "the projections and the completion query see the expanded paths" do
+      index = typed([%{"path" => "txn", "type" => "cards.credit_txn"}])
+
+      assert Index.declared_paths(index) ==
+               MapSet.new([
+                 "txn",
+                 "txn.amount_cents",
+                 "txn.card",
+                 "txn.card.brand",
+                 "txn.risk_reasons"
+               ])
+
+      assert index |> Index.under("txn.card") |> Enum.map(& &1.path) == ["txn.card.brand"]
+      assert Map.keys(index.declarations) |> Enum.sort() == ["cards.card", "cards.credit_txn"]
+    end
+
+    # sabotage: gave `scalar_kind/1` a `{:declared, _}` clause answering
+    # `:string` - the map gained "txn" and "txn.card", so this test and the
+    # list-entry one both went red (verified).
+    test "decision 11 inherits: the members project, the declaration-typed entry does not" do
+      index = typed([%{"path" => "txn", "type" => "cards.credit_txn"}])
+
+      assert Index.path_types(index) == %{
+               "txn.amount_cents" => :number,
+               "txn.card.brand" => {:one_of, ["visa", "mastercard", "amex"]},
+               "txn.risk_reasons" => {:list, :string}
+             }
+    end
+  end
+
   describe "the lookups" do
     # sabotage: had `fetch/2` fall back to `{:ok, %{}}` for an unknown path
     # - the `:error` assertion went red, and an unknown path would have
