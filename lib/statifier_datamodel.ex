@@ -37,7 +37,8 @@ defmodule StatifierDatamodel do
   and its index are `StatifierDatamodel.Index` and
   `StatifierDatamodel.Document`; the document's declared types are
   `StatifierDatamodel.Declarations` and the type expressions over them, with
-  the read check, are `StatifierDatamodel.Types`. Compatibility and coverage
-  land beside them as the record's remaining decisions are built.
+  the read check, are `StatifierDatamodel.Types`. What is decided across two
+  declarations is `StatifierDatamodel.Compatibility`, and what is decided
+  between a declaration and a map is `StatifierDatamodel.Coverage`.
   """
 end
