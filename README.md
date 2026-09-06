@@ -103,10 +103,12 @@ constraint a read places on one. `StatifierDatamodel.Declarations` indexes
 the document's `types` key to `name -> declaration`, and
 `StatifierDatamodel.Types` decides the read check over it: unknown is
 permissive both ways, then identity, then a record read as a shape is
-admitted when the record's fields cover the shape's required set. Identity is
-nominal - there is no structural widening between two records.
-`satisfies/3` returns the reason a consumer renders; `satisfies?/3` is the
-same check as a boolean.
+admitted when the record's fields cover the shape's required set. Covering a
+required shape field takes a record field of the same name that the record
+also declares required: an optional field has not promised the value, so it
+does not cover. Identity is nominal - there is no structural widening between
+two records. `satisfies/3` returns the reason a consumer renders;
+`satisfies?/3` is the same check as a boolean.
 
     iex> alias StatifierDatamodel.{Declarations, Types}
     iex> declarations = Declarations.from_document(%{"types" => [
@@ -132,6 +134,26 @@ same check as a boolean.
     false
     iex> Types.satisfies(declarations, :date, :date)
     :identical
+
+Drop the `required?` on the record's `authorized_at` and the same read stops
+being satisfied, naming that field the way an absent one is named. The fix in
+the document is one key: mark the field required where the record does
+promise the value.
+
+    iex> alias StatifierDatamodel.{Declarations, Types}
+    iex> loose = Declarations.from_document(%{"types" => [
+    ...>   %{"name" => "cards.credit_txn", "kind" => "record",
+    ...>     "label" => "Credit transaction", "fields" => [
+    ...>       %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+    ...>       %{"name" => "currency", "type" => "string", "required?" => true},
+    ...>       %{"name" => "authorized_at", "type" => "datetime"}]},
+    ...>   %{"name" => "Settleable", "kind" => "shape", "label" => "Settleable",
+    ...>     "fields" => [
+    ...>       %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+    ...>       %{"name" => "currency", "type" => "string", "required?" => true},
+    ...>       %{"name" => "authorized_at", "type" => "datetime", "required?" => true}]}]})
+    iex> Types.satisfies(loose, {:declared, "cards.credit_txn"}, {:declared, "Settleable"})
+    {:missing, ["authorized_at"]}
 
 ### Compatibility of a redefined declaration
 
