@@ -2,10 +2,12 @@ defmodule StatifierDatamodel.CompatibilityTest do
   @moduledoc """
   ADR-0001 decision 9 - what a redefined declaration takes away.
 
-  The record's eight rows are pinned twice: once row by row, and once as the
-  whole table in a single comparison, so a change to the verdict of any one
-  row goes red in a test that names it. The declarations are the record's
-  worked shape, redefined the way a host redefines one.
+  The record's six rows - decision 9 as amended 2026-09-06 - are pinned
+  twice: once row by row, and once as the whole table in a single
+  comparison, so a change to the verdict of any one row goes red in a test
+  that names it. The two rows the amendment removed are pinned too, as the
+  hint they now are. The declarations are the record's worked shape,
+  redefined the way a host redefines one.
   """
 
   use ExUnit.Case, async: true
@@ -66,61 +68,72 @@ defmodule StatifierDatamodel.CompatibilityTest do
       assert redefined([@brand], [@brand, now]) == [{:required_added, "expires_on"}]
     end
 
-    # sabotage: made `group_added?/2` answer false for a `nil` old group, so
-    # constraining a previously unconstrained field read as compatible - the
-    # first assertion went red (verified).
-    test "row 5: a one_of value group added, and shrinking one is adding one" do
-      constrained = %{"name" => "brand", "type" => "string", "one_of" => ["visa", "amex"]}
-      shrunk = %{"name" => "brand", "type" => "string", "one_of" => ["visa"]}
-
-      unconstrained = %{"name" => "brand", "type" => "string"}
-
-      assert redefined([unconstrained], [constrained]) == [{:group_added, "brand"}]
-      assert redefined([constrained], [shrunk]) == [{:group_added, "brand"}]
+    # sabotage: reversed the guard to `not was.required? and now.required?` -
+    # this row and row 3 both went red, which is the pair the guard's
+    # direction decides between (verified).
+    test "row 5: a field required -> optional" do
+      now = %{"name" => "brand", "type" => "string"}
+      assert redefined([@brand], [now]) == [{:made_optional, "brand"}]
     end
   end
 
-  describe "the three compatible rows" do
+  describe "the one compatible row" do
     # sabotage: had the `added` comprehension emit for every new field - this
     # assertion went red, and every widened document would have been called
     # breaking (verified).
     test "row 6: an optional field added" do
       assert redefined([@brand], [@brand, @last4]) == []
     end
+  end
 
-    # sabotage: emitted `{:made_required, name}` whenever `required?`
-    # differed at all - this assertion went red while row 4's stayed green
-    # (verified).
-    test "row 7: a field required -> optional" do
-      now = %{"name" => "brand", "type" => "string"}
-      assert redefined([@brand], [now]) == []
-    end
-
-    # sabotage: made `group_added?/2` compare the two lists with `!=`, so
-    # dropping, reordering and widening a group all reported a break - this
-    # row went red and no other test did (verified).
-    test "row 8: a one_of value group removed, and reordering one is no change" do
+  describe "a one_of is a completion hint, and never a break" do
+    # sabotage: added `if was.one_of != now.one_of, do: [{:type_changed,
+    # was.name}]` back into `changes/2` - both tests in this describe went
+    # red, and a suggestion list would have been reported as a narrowing
+    # again (verified).
+    test "adding, removing, reordering, widening and shrinking one are all compatible" do
+      unconstrained = %{"name" => "brand", "type" => "string"}
       constrained = %{"name" => "brand", "type" => "string", "one_of" => ["visa", "amex"]}
       reordered = %{"name" => "brand", "type" => "string", "one_of" => ["amex", "visa"]}
       widened = %{"name" => "brand", "type" => "string", "one_of" => ["visa", "amex", "discover"]}
-      unconstrained = %{"name" => "brand", "type" => "string"}
+      shrunk = %{"name" => "brand", "type" => "string", "one_of" => ["visa"]}
+      disjoint = %{"name" => "brand", "type" => "string", "one_of" => ["discover"]}
+      emptied = %{"name" => "brand", "type" => "string", "one_of" => []}
 
-      assert redefined([constrained], [unconstrained]) == []
-      assert redefined([constrained], [reordered]) == []
-      assert redefined([constrained], [widened]) == []
+      for {change, was, now} <- [
+            {"added", unconstrained, constrained},
+            {"removed", constrained, unconstrained},
+            {"reordered", constrained, reordered},
+            {"widened", constrained, widened},
+            {"shrunk", constrained, shrunk},
+            {"replaced", constrained, disjoint},
+            {"emptied", constrained, emptied},
+            {"filled from empty", emptied, constrained}
+          ] do
+        assert {change, redefined([was], [now])} == {change, []}
+      end
+    end
+
+    # sabotage: had `changes/2` skip `made_optional` when a `one_of` was
+    # present - this assertion went red, which is what says the hint is
+    # ignored rather than merely never reported on its own (verified).
+    test "a hint edited beside a real narrowing does not change what is reported" do
+      was = %{"name" => "brand", "type" => "string", "required?" => true, "one_of" => ["visa"]}
+      now = %{"name" => "brand", "type" => "string", "one_of" => ["amex", "discover"]}
+
+      assert redefined([was], [now]) == [{:made_optional, "brand"}]
     end
   end
 
   describe "the table as a whole" do
     # sabotage: dropped the `added` narrowings from the answer, so a
-    # required field added reported nothing - the eight-row comparison went
+    # required field added reported nothing - the six-row comparison went
     # red on that row, which is the drift a verdict table catches whichever
     # row it reaches (verified).
-    test "eight rows, eight verdicts" do
+    test "six rows, six verdicts" do
       optional = %{"name" => "f", "type" => "string"}
       required = %{"name" => "f", "type" => "string", "required?" => true}
       retyped = %{"name" => "f", "type" => "integer"}
-      grouped = %{"name" => "f", "type" => "string", "one_of" => ["a", "b"]}
       other = %{"name" => "g", "type" => "string"}
       other_required = %{"name" => "g", "type" => "string", "required?" => true}
 
@@ -129,10 +142,8 @@ defmodule StatifierDatamodel.CompatibilityTest do
         {"a field's type changed", [optional], [retyped]},
         {"a field optional -> required", [optional], [required]},
         {"a required field added", [optional], [optional, other_required]},
-        {"a one_of value group added", [optional], [grouped]},
-        {"an optional field added", [optional], [optional, other]},
         {"a field required -> optional", [required], [optional]},
-        {"a one_of value group removed", [grouped], [optional]}
+        {"an optional field added", [optional], [optional, other]}
       ]
 
       verdicts =
@@ -145,10 +156,8 @@ defmodule StatifierDatamodel.CompatibilityTest do
                {"a field's type changed", :breaking},
                {"a field optional -> required", :breaking},
                {"a required field added", :breaking},
-               {"a one_of value group added", :breaking},
-               {"an optional field added", :compatible},
-               {"a field required -> optional", :compatible},
-               {"a one_of value group removed", :compatible}
+               {"a field required -> optional", :breaking},
+               {"an optional field added", :compatible}
              ]
     end
   end
@@ -160,19 +169,18 @@ defmodule StatifierDatamodel.CompatibilityTest do
     test "breaks are ordered by field name, then by reason" do
       was = [
         %{"name" => "zulu", "type" => "string"},
-        %{"name" => "alpha", "type" => "string", "one_of" => ["a", "b"]},
+        %{"name" => "alpha", "type" => "string", "required?" => true},
         %{"name" => "mike", "type" => "string"}
       ]
 
       now = [
-        %{"name" => "alpha", "type" => "integer", "required?" => true, "one_of" => ["a"]},
+        %{"name" => "alpha", "type" => "integer"},
         %{"name" => "mike", "type" => "string"}
       ]
 
       assert redefined(was, now) == [
                {:type_changed, "alpha"},
-               {:made_required, "alpha"},
-               {:group_added, "alpha"},
+               {:made_optional, "alpha"},
                {:field_removed, "zulu"}
              ]
     end

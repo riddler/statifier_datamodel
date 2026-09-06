@@ -77,6 +77,48 @@ defmodule StatifierDatamodel.Index do
       projection does, so the question stays open rather than being
       answered by use.
 
+  ## An entry typed by a declaration
+
+  Decision 3 as amended 2026-09-06 lets an entry's `type` - and a `list`
+  entry's `item_type` - name a declaration the document's `types` key
+  declares, instead of one of the nine. The reference is **nominal**: the
+  entry's type is `{:declared, name}`, not a copy of the declaration's
+  fields.
+
+  Resolution is the closed set first and then `types`, the same precedence
+  `StatifierDatamodel.Types.parse/2` uses for a declaration field, so a
+  document that declares a type called `"string"` does not shadow the
+  scalar. A spelling that names neither is `nil` - unknown, exactly as
+  before.
+
+  A declaration-typed entry then **expands**: it contributes its own path,
+  and beneath it one path per field of the declaration, spelled
+  `<entry path>.<field name>` at the entry's depth plus one, in the
+  declaration's field order, recursively for a field that itself names a
+  declaration. That is exactly what an inlined `object` entry does with its
+  `fields`, which is the point - a host that spells the object out and a
+  host that names the declaration get the same paths, so decision 7's
+  projection and decision 11's are unchanged in their own terms.
+
+  An expanded path carries what the field carries and nothing more: the
+  field's `type`, `item_type`, `label` and `one_of`, its `name`, and the
+  entry's `scope`. `example` and `note` are absent and `sensitive?` is
+  `false`, because a declaration field has no such keys and this module does
+  not invent them. An entry that names a declaration **and** carries
+  `fields` contributes both, with the entry's own written-out `fields`
+  ahead of the expansion, so a host that spells a path out gets the entry it
+  wrote rather than the one derived from the declaration - first occurrence
+  wins here as it does for a repeated path.
+
+  A cycle between declarations is a document a host can write, and it
+  discharges rather than recurring: a declaration already being expanded on
+  the same chain is not expanded again, so `index/1` stays total. That is
+  the discipline the read check already uses for a cyclic read.
+
+  A `list` entry still contributes its own path alone whatever its
+  `item_type` names: `item_type` names an element type, no record decides an
+  index syntax, and there is no element path to expand.
+
   ## Value kinds, and why they are a third projection
 
   `path_types/1` is decision 11: the index projected to the expression
@@ -113,6 +155,8 @@ defmodule StatifierDatamodel.Index do
   would decide a rule no record has drawn.
   """
 
+  alias StatifierDatamodel.Declarations
+
   @typedoc """
   The closed type set. No floats anywhere: money is integer minor units,
   and a `decimal`, a `datetime`, a `date` and a `duration` are all carried
@@ -146,6 +190,19 @@ defmodule StatifierDatamodel.Index do
   @type scope :: :global | :local | :event | nil
 
   @typedoc """
+  A declared name used as a type: an entry's `type` or `item_type` may name
+  a declaration the document's `types` key declares (decision 3 as amended
+  2026-09-06), and the index carries the name rather than the declaration.
+  """
+  @type declared :: {:declared, String.t()}
+
+  @typedoc """
+  What an entry's `type` or `item_type` may be: one of the nine, or the name
+  of a declaration.
+  """
+  @type entry_type :: type() | declared()
+
+  @typedoc """
   One declared path, flattened out of the document.
 
   `depth` is the nesting level `fields` reached it at - `0` for a
@@ -155,11 +212,11 @@ defmodule StatifierDatamodel.Index do
   @type entry :: %{
           path: String.t(),
           name: String.t() | nil,
-          type: type() | nil,
+          type: entry_type() | nil,
           label: String.t() | nil,
           scope: scope(),
           depth: non_neg_integer(),
-          item_type: type() | nil,
+          item_type: entry_type() | nil,
           example: term(),
           note: String.t() | nil,
           one_of: [term()] | nil,
@@ -167,16 +224,22 @@ defmodule StatifierDatamodel.Index do
         }
 
   @typedoc """
-  The index: the document's `version`, its entries by path, and the paths
-  in document order.
+  The index: the document's `version`, its entries by path, the paths in
+  document order, and the declarations the `types` key indexes to.
+
+  The declarations are carried because resolving an entry's `type` needs
+  them (decision 3 as amended 2026-09-06); they are
+  `StatifierDatamodel.Declarations.from_document/1`'s answer over the same
+  document, so a caller holding an index never builds a second one.
   """
   @type t :: %__MODULE__{
           version: integer(),
           entries: %{optional(String.t()) => entry()},
-          order: [String.t()]
+          order: [String.t()],
+          declarations: Declarations.t()
         }
 
-  defstruct version: 1, entries: %{}, order: []
+  defstruct version: 1, entries: %{}, order: [], declarations: %{}
 
   # The closed type set, and the three scopes, spelled as literal pairs
   # rather than converted: the record's sets are closed, so a closed match
@@ -221,12 +284,14 @@ defmodule StatifierDatamodel.Index do
   """
   @spec index(term()) :: t() | nil
   def index(%{"scopes" => scopes} = document) when is_list(scopes) do
-    entries = Enum.flat_map(scopes, &scope_entries/1)
+    declarations = Declarations.from_document(document)
+    entries = Enum.flat_map(scopes, &scope_entries(&1, declarations))
 
     %__MODULE__{
       version: version(Map.get(document, "version")),
       entries: dedupe(entries),
-      order: entries |> Enum.map(& &1.path) |> Enum.uniq()
+      order: entries |> Enum.map(& &1.path) |> Enum.uniq(),
+      declarations: declarations
     }
   end
 
@@ -399,7 +464,7 @@ defmodule StatifierDatamodel.Index do
   set gets, for the same reason: this module reports what it can name and
   claims nothing about the rest.
   """
-  @spec type(t(), term()) :: type() | nil
+  @spec type(t(), term()) :: entry_type() | nil
   def type(%__MODULE__{} = index, path) do
     case fetch(index, path) do
       {:ok, entry} -> entry.type
@@ -494,13 +559,13 @@ defmodule StatifierDatamodel.Index do
   defp version(v) when is_integer(v), do: v
   defp version(_absent_or_malformed), do: 1
 
-  @spec scope_entries(term()) :: [entry()]
-  defp scope_entries(%{"entries" => entries} = scope) when is_list(entries) do
+  @spec scope_entries(term(), Declarations.t()) :: [entry()]
+  defp scope_entries(%{"entries" => entries} = scope, declarations) when is_list(entries) do
     name = scope_name(Map.get(scope, "scope"))
-    Enum.flat_map(entries, &entry(&1, name, 0))
+    Enum.flat_map(entries, &entry(&1, declarations, name, 0))
   end
 
-  defp scope_entries(_unrecognized), do: []
+  defp scope_entries(_unrecognized, _declarations), do: []
 
   @spec scope_name(term()) :: scope()
   defp scope_name(name) when is_binary(name), do: Map.get(@scopes, name)
@@ -509,36 +574,83 @@ defmodule StatifierDatamodel.Index do
   # The projection's `entry_paths/1`, carrying the whole entry rather than
   # its path alone: an entry contributes itself when it has a path, and its
   # `fields` are walked either way.
-  @spec entry(term(), scope(), non_neg_integer()) :: [entry()]
-  defp entry(%{} = raw, scope, depth) do
-    own =
+  @spec entry(term(), Declarations.t(), scope(), non_neg_integer()) :: [entry()]
+  defp entry(%{} = raw, declarations, scope, depth) do
+    {own, expanded} =
       case Map.get(raw, "path") do
-        path when is_binary(path) and path != "" -> [normalize(raw, path, scope, depth)]
-        _absent_or_malformed -> []
+        path when is_binary(path) and path != "" ->
+          normalized = normalize(raw, declarations, path, scope, depth)
+          {[normalized], expand(normalized, declarations, MapSet.new())}
+
+        _absent_or_malformed ->
+          {[], []}
       end
 
-    own ++ fields(Map.get(raw, "fields"), scope, depth + 1)
+    own ++ fields(Map.get(raw, "fields"), declarations, scope, depth + 1) ++ expanded
   end
 
-  defp entry(_unrecognized, _scope, _depth), do: []
+  defp entry(_unrecognized, _declarations, _scope, _depth), do: []
 
-  @spec fields(term(), scope(), non_neg_integer()) :: [entry()]
-  defp fields(fields, scope, depth) when is_list(fields) do
-    Enum.flat_map(fields, &entry(&1, scope, depth))
+  @spec fields(term(), Declarations.t(), scope(), non_neg_integer()) :: [entry()]
+  defp fields(fields, declarations, scope, depth) when is_list(fields) do
+    Enum.flat_map(fields, &entry(&1, declarations, scope, depth))
   end
 
-  defp fields(_absent, _scope, _depth), do: []
+  defp fields(_absent, _declarations, _scope, _depth), do: []
 
-  @spec normalize(map(), String.t(), scope(), non_neg_integer()) :: entry()
-  defp normalize(raw, path, scope, depth) do
+  # -- expanding a declaration-typed entry -----------------------------------
+
+  # The declaration's fields, beneath the entry's own path, exactly as an
+  # inlined `object` contributes its `fields`. `seen` carries the
+  # declarations already being expanded on this chain of paths, so a cycle
+  # discharges instead of recurring.
+  @spec expand(entry(), Declarations.t(), MapSet.t(String.t())) :: [entry()]
+  defp expand(%{type: {:declared, name}} = entry, declarations, seen) do
+    with false <- MapSet.member?(seen, name),
+         {:ok, declaration} <- Declarations.fetch(declarations, name) do
+      seen = MapSet.put(seen, name)
+
+      Enum.flat_map(declaration.fields, fn field ->
+        member = member(entry, field)
+        [member | expand(member, declarations, seen)]
+      end)
+    else
+      _cyclic_or_undeclared -> []
+    end
+  end
+
+  defp expand(_not_declaration_typed, _declarations, _seen), do: []
+
+  # One field of a declaration, as the entry it contributes beneath its
+  # parent. A declaration field has no `example` and no `note` and carries
+  # no `sensitive?`, so this invents none of them.
+  @spec member(entry(), Declarations.field()) :: entry()
+  defp member(entry, field) do
+    %{
+      path: entry.path <> "." <> field.name,
+      name: field.name,
+      type: field.type,
+      label: field.label,
+      scope: entry.scope,
+      depth: entry.depth + 1,
+      item_type: field.item_type,
+      example: nil,
+      note: nil,
+      one_of: field.one_of,
+      sensitive?: false
+    }
+  end
+
+  @spec normalize(map(), Declarations.t(), String.t(), scope(), non_neg_integer()) :: entry()
+  defp normalize(raw, declarations, path, scope, depth) do
     %{
       path: path,
       name: string(Map.get(raw, "name")),
-      type: entry_type(Map.get(raw, "type")),
+      type: entry_type(Map.get(raw, "type"), declarations),
       label: string(Map.get(raw, "label")),
       scope: scope,
       depth: depth,
-      item_type: entry_type(Map.get(raw, "item_type")),
+      item_type: entry_type(Map.get(raw, "item_type"), declarations),
       example: Map.get(raw, "example"),
       note: string(Map.get(raw, "note")),
       one_of: list(Map.get(raw, "one_of")),
@@ -546,9 +658,17 @@ defmodule StatifierDatamodel.Index do
     }
   end
 
-  @spec entry_type(term()) :: type() | nil
-  defp entry_type(t) when is_binary(t), do: Map.get(@types, t)
-  defp entry_type(_outside_the_closed_set), do: nil
+  # The closed set first, so a declaration named for a scalar does not shadow
+  # it, then the declarations; a spelling that names neither is unknown.
+  @spec entry_type(term(), Declarations.t()) :: entry_type() | nil
+  defp entry_type(t, declarations) when is_binary(t) do
+    case Map.get(@types, t) do
+      nil -> if Map.has_key?(declarations, t), do: {:declared, t}
+      scalar -> scalar
+    end
+  end
+
+  defp entry_type(_outside_the_closed_set, _declarations), do: nil
 
   @spec string(term()) :: String.t() | nil
   defp string(value) when is_binary(value), do: value

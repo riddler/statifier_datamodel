@@ -155,6 +155,47 @@ promise the value.
     iex> Types.satisfies(loose, {:declared, "cards.credit_txn"}, {:declared, "Settleable"})
     {:missing, ["authorized_at"]}
 
+### An entry typed by a declaration
+
+An entry's `type`, and a `list` entry's `item_type`, may name a declaration
+instead of one of the nine types. The reference is nominal - the index
+carries `{:declared, name}`, not a copy of the fields - and the entry then
+contributes the declaration's fields beneath its own path, exactly as an
+inlined `object` entry contributes its `fields`. A name the `types` key does
+not declare stays unknown, as it always has.
+
+    iex> alias StatifierDatamodel.Index
+    iex> index = Index.index(%{"scopes" => [
+    ...>   %{"scope" => "local", "entries" => [
+    ...>     %{"name" => "txn", "path" => "txn", "type" => "cards.credit_txn",
+    ...>       "label" => "Transaction"},
+    ...>     %{"name" => "note", "path" => "note", "type" => "cards.nothing"}]}],
+    ...>   "types" => [
+    ...>     %{"name" => "cards.credit_txn", "kind" => "record",
+    ...>       "label" => "Credit transaction", "fields" => [
+    ...>         %{"name" => "amount_cents", "type" => "integer", "required?" => true},
+    ...>         %{"name" => "card", "type" => "cards.card", "required?" => true}]},
+    ...>     %{"name" => "cards.card", "kind" => "record", "label" => "Card",
+    ...>       "fields" => [
+    ...>         %{"name" => "brand", "type" => "string",
+    ...>           "one_of" => ["visa", "mastercard", "amex"]}]}]})
+    iex> index.order
+    ["txn", "txn.amount_cents", "txn.card", "txn.card.brand", "note"]
+    iex> Index.type(index, "txn.card")
+    {:declared, "cards.card"}
+    iex> Index.type(index, "note")
+    nil
+    iex> Index.path_types(index)
+    %{
+      "txn.amount_cents" => :number,
+      "txn.card.brand" => {:one_of, ["visa", "mastercard", "amex"]}
+    }
+
+`txn` and `txn.card` are absent from the value kinds for the same reason an
+`object` entry is: neither is a value the expression language has a kind
+for. A cycle between declarations discharges rather than recurring, so
+`index/1` stays total over any document a host can write.
+
 ### Compatibility of a redefined declaration
 
 `StatifierDatamodel.Compatibility.breaks/2` is given the declaration a name
@@ -179,15 +220,30 @@ never an empty list.
     iex> {:ok, old} = Declarations.fetch(was, "cards.credit_txn")
     iex> {:ok, new} = Declarations.fetch(now, "cards.credit_txn")
     iex> Compatibility.breaks(old, new)
-    [{:field_removed, "authorized_at"}]
+    [{:field_removed, "authorized_at"}, {:made_optional, "currency"}]
     iex> Compatibility.breaks(old, old)
     []
     iex> Compatibility.breaks(nil, nil)
     :error
 
-Dropping `authorized_at` breaks; relaxing `currency` from required to
-optional does not, because this answers *may a reader keep reading*, not
-*did anything change*.
+Both changes break: dropping `authorized_at` takes the field away, and
+relaxing `currency` takes away the promise that the value is there, which
+the read check has read as *not covered* since decision 8 was amended. What
+does not break is a widening - an optional field added - and a `one_of`,
+which is a completion hint and not a constraint however it is edited.
+
+    iex> alias StatifierDatamodel.{Compatibility, Declarations}
+    iex> hinted = fn one_of -> Declarations.from_document(%{"types" => [
+    ...>   %{"name" => "cards.card", "kind" => "record", "label" => "Card",
+    ...>     "fields" => [
+    ...>       %{"name" => "brand", "type" => "string", "required?" => true,
+    ...>         "one_of" => one_of}]}]}) end
+    iex> {:ok, old} = Declarations.fetch(hinted.(["visa", "mastercard", "amex"]), "cards.card")
+    iex> {:ok, new} = Declarations.fetch(hinted.(["visa"]), "cards.card")
+    iex> Compatibility.breaks(old, new)
+    []
+
+This answers *may a reader keep reading*, not *did anything change*.
 
 ### Coverage of a map against a shape
 
