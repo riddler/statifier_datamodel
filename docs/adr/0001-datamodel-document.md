@@ -572,18 +572,18 @@ or needs to know that a finding was produced.
   entries, so nothing needs an entry typed by a record yet. Admitting it is
   a small additive amendment when something does.
 
-*[Answered 2026-09-06, with `sd-wj1`, by the amendment at the end of this
-record: something does, so an entry's `type` and a `list` entry's
-`item_type` may name a declaration. This question is closed.]*
+  *[Answered 2026-09-06, with `sd-wj1`, by the amendment at the end of this
+  record: something does, so an entry's `type` and a `list` entry's
+  `item_type` may name a declaration. This question is closed.]*
 - **The `one_of` value group on a declaration field.** Decision 9 reads a
   field's `one_of` as a value group that narrows the field, so adding one is
   breaking. If the walk that rules on this record prefers `one_of` to stay a
   pure completion hint on declaration fields as it is on entries, the two
   group rows drop out of the table and nothing else changes.
 
-*[Answered 2026-09-06, with `sd-wj1`, by the amendment at the end of this
-record: the walk prefers the hint, and the two group rows are gone. This
-question is closed, and the last of the three carried here with it.]*
+  *[Answered 2026-09-06, with `sd-wj1`, by the amendment at the end of this
+  record: the walk prefers the hint, and the two group rows are gone. This
+  question is closed, and the last of the three carried here with it.]*
 - **Whether `required?` on a *record* field means anything to the read
   check.** Decision 8 reads the shape side's `required?` and ignores the
   record side's: a record's optional field still covers a shape's required
