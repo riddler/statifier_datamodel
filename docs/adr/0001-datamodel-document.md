@@ -20,6 +20,8 @@ Note (2026-09-06, `sd-906`): it is the second-to-last section now - the
 Decision 8 and the type-expression grammar of decision 5 amended - a type
 expression admits an inline, unnamed shape beside a declared name (proposed
 2026-09-06, `sd-906`; the amendment is the last section of this record).
+Note (2026-09-06, `sd-n51`): that amendment is accepted - its code is on
+`main` in `3116a72`.
 
 Origin: `sb-ADR-0006`, "The datamodel document is a typed, three-scope
 declaration, and the declared-path set is its projection", accepted in
@@ -939,11 +941,15 @@ an amendment whose record and code are one bead.]*
 
 ## Amendment (2026-09-06): a type expression admits an inline, unnamed shape beside a declared name
 
-**Status: proposed (2026-09-06), on the operator's campaign-SF035 ruling
+**Status: accepted (2026-09-06), on the operator's campaign-SF035 ruling
 RQ-SF035-1.** Additive: it grows the type-expression grammar by one arm and
 decision 8's read check by one step, and takes nothing away from a document
 already written. No text above this line is edited by this section, and the
 amendment takes effect when `sd-izx` lands the code and the status flips.
+
+*[Note 2026-09-06, with `sd-n51`: it has. `sd-izx` landed the code on `main`
+in `3116a72`, so the status line above is accepted and this section is in
+effect. No release has shipped it yet.]*
 
 ### Context
 
@@ -1212,3 +1218,7 @@ Implemented by `sd-izx` (`Types.t/0`'s arm, step 2's member-set identity and
 decision 8's member-wise step, with the chunk envelope above as the case).
 This section merges at proposed and flips to accepted in a separate change
 (`sd-n51`) once that code is on `main`.
+
+*[Note 2026-09-06, with `sd-n51`: that separate change is this one. The code
+is on `main` in `3116a72`, and the status line at the head of this section
+now reads accepted.]*
