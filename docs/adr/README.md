@@ -2,7 +2,7 @@
 
 | # | Decision | Status |
 |---|---|---|
-| [0001](0001-datamodel-document.md) | The datamodel document, re-homed: a typed three-scope declaration with named record and shape types, and the declared-path set as its projection | proposed |
+| [0001](0001-datamodel-document.md) | The datamodel document, re-homed: a typed three-scope declaration with named record and shape types, and the declared-path set as its projection | accepted |
 
 New ADRs: next number, same three-section format (Context, Decision,
 Consequences), plus the typespecs and worked-example sections this family's

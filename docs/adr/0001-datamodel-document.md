@@ -1,6 +1,6 @@
 # ADR-0001: The datamodel document, re-homed: a typed three-scope declaration with named record and shape types, and the declared-path set as its projection
 
-Status: proposed (2026-09-05). Acceptance is the operator's; this record does
+Status: accepted (2026-09-06). Acceptance is the operator's; this record does
 not flip its own status.
 
 Origin: `sb-ADR-0006`, "The datamodel document is a typed, three-scope
@@ -548,3 +548,56 @@ or needs to know that a finding was produced.
   field by name and type. Whether an optional record field should cover a
   required shape field at all is a question the first embedder's uptake will
   answer with a real case.
+
+---
+
+## Note (2026-09-06): accepted, and the eight readings the flip records
+
+This record is accepted as of 2026-09-06, after the code it specifies landed
+on `main` in four merges: the index and the document reads (`9ba52a1`), the
+declared types and the read check (`525ee6c`), `Index.path_types/1`
+(`895c7b6`), and compatibility and coverage (`8d29582`). Every claim above
+was verified against that tree before the status line moved. The record is
+unchanged in every clause; what follows is a note, not an amendment - eight
+places where the code answered something this record left silent, or where
+two of its own sentences pulled in different directions. From this flip on,
+the record reads as each line below says.
+
+- **The Origin paragraph above**, which says `sb-ADR-0006` "is the accepted
+  text and this record is the proposal that succeeds it", was written while
+  this record was proposed; from this flip on this record is the accepted
+  text for the document's shape, the index, the declared types, the read
+  check, compatibility and coverage, and `sb-ADR-0006` is its origin.
+- **Decision 5, `label`.** The declaration table marks `label` required
+  while the typespec below gives it `String.t() | nil` and decision 6's drop
+  rule names only `name`, `kind` and `fields`: decision 6 governs admission,
+  so a label-less declaration is kept with `label: nil` and "required" in
+  the table is what a host is expected to supply, not a condition of being
+  indexed.
+- **Decision 5, `note`.** A declaration's and a field's optional `note`
+  "carries no contract", and the code carries that literally: `note` is read
+  by nobody and appears in no indexed declaration or field. (An *entry*'s
+  `note`, decision 3's, is indexed and unchanged.)
+- **Decision 8, a `list` field's `item_type`.** The read check compares a
+  field's `type` and is silent on `item_type`, so a `list` satisfies a
+  `list` whatever its items are; narrowing that is an amendment, not a
+  reading.
+- **Decision 9, `breaks/2`'s signature.** The prose's ":error for a name
+  declared on neither side" cannot be expressed by the illustrative typespec
+  below, which takes two declarations and returns `[break()]`. The prose
+  governs: `breaks/2` takes `declaration() | nil` on each side and returns
+  `[break()] | :error`, at the same name and arity.
+- **Decision 9, a shrunk value group.** The prose calls shrinking a `one_of`
+  "a group changed", and the closed `break()` vocabulary has no
+  `:group_changed`: a shrunk group is reported as `{:group_added, name}`,
+  which is the tuple for *admits fewer values than before*, and the
+  vocabulary stays at five.
+- **Decision 9, what is not compared.** `breaks/2` compares a field's
+  `type`, its `required?` and its `one_of`, and deliberately compares
+  neither `item_type`, nor `label`, nor the declaration's `kind` - the table
+  lists the narrowings it decides and nothing outside it is a break.
+- **Decision 11, an `object` carrying a `one_of`.** The one_of row is read
+  literally and wins over the kind, so an `object` entry carrying a drawable
+  `one_of` **is** present in `path_types/1` with its values; the row that
+  makes an `object` absent is the fall-through for an entry with no drawable
+  enumeration, not a gate on the entry's kind.
