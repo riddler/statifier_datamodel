@@ -33,7 +33,10 @@ defmodule StatifierDatamodel do
   plus `date`, the same declared-path projection, and the `types` key that
   the re-homing adds.
 
-  Nothing is implemented yet. This module exists so the package has a root;
-  the modules named in ADR-0001 land in the campaign that moves the code.
+  This module is the package's root and holds no functions. The document
+  and its index are `StatifierDatamodel.Index` and
+  `StatifierDatamodel.Document`; the declared types, the read check,
+  compatibility and coverage land beside them as the record's remaining
+  decisions are built.
   """
 end
