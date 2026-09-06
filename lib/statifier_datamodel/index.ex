@@ -77,6 +77,21 @@ defmodule StatifierDatamodel.Index do
       projection does, so the question stays open rather than being
       answered by use.
 
+  ## Value kinds, and why they are a third projection
+
+  `path_types/1` is decision 11: the index projected to the expression
+  language's own vocabulary of value kinds, which is a smaller and different
+  set from the document's nine types. `integer` and `decimal` both answer
+  `:number` there, because that is the distinction the expression language
+  draws; `object` has no kind at all and neither does a `list` whose element
+  type the document does not name, so those paths are simply absent.
+
+  Absence is the same stance the rest of this module takes: an editor handed
+  the map treats a path it does not contain exactly as it treats every path
+  today, which is the reason this is a projection and not a check. The map
+  carries no labels, scopes or declarations - a consumer wanting those reads
+  the index it was built from.
+
   ## `sensitive?`, and why it is derived here rather than projected
 
   The entry map is where a per-path annotation lives, in the family's
@@ -272,6 +287,83 @@ defmodule StatifierDatamodel.Index do
     %{declared: declared_paths(index), sensitive: sensitive_paths(index)}
   end
 
+  @typedoc """
+  One value kind in the expression language's vocabulary.
+
+  Six atoms, not nine: `integer` and `decimal` are both `:number`, and
+  `object` and `list` have no kind of their own - a list is spelled
+  `{:list, kind}` and an object is absent. `:list` is a value kind the
+  expression language names too, but only ever inside that tuple here,
+  since an element type the document does not give is not a list this
+  projection can describe.
+  """
+  @type kind :: :string | :number | :boolean | :date | :datetime | :duration
+
+  @typedoc """
+  What one path projects to: a kind, a list of a kind, or an enumeration of
+  the values an editor may draw as choices.
+  """
+  @type value_kind :: kind() | {:list, kind()} | {:one_of, [term()]}
+
+  @doc """
+  ADR-0001 decision 11's projection: `path -> value kind`, in the
+  expression language's own vocabulary.
+
+  Total, over anything: `nil` and a value that is not an index project to
+  the empty map, on the same reasoning `index/1` returns `nil` for an
+  input it cannot admit.
+
+  Per entry, in the record's order:
+
+    * a **drawable `one_of`** wins over the kind and gives
+      `{:one_of, values}`. Drawable means every value can be rendered as a
+      choice - a string, a number or a boolean. A `one_of` that is empty,
+      or that holds anything else, is not drawn and the entry falls back to
+      its kind. The enumeration winning is decision 11's word and is not
+      qualified by the entry's type, so an `object` carrying a drawable
+      `one_of` is present with its values, where the same entry without one
+      would be absent.
+    * `string` is `:string`; `integer` and `decimal` are both `:number`;
+      `boolean` is `:boolean`; `date`, `datetime` and `duration` are
+      themselves.
+    * a `list` whose `item_type` is one of those is `{:list, kind}`.
+    * `object`, a `list` with no usable `item_type`, and an entry whose
+      type is outside the closed set are **absent from the map**. Absence
+      means unknown, not wrong.
+
+      iex> alias StatifierDatamodel.Index
+      iex> %{"scopes" => [%{"scope" => "local", "entries" => [
+      ...>   %{"path" => "amount_cents", "type" => "integer"},
+      ...>   %{"path" => "risk_reasons", "type" => "list", "item_type" => "string"},
+      ...>   %{"path" => "card", "type" => "object", "fields" => [
+      ...>     %{"path" => "card.brand", "type" => "string",
+      ...>       "one_of" => ["visa", "mastercard", "amex"]}]}]}]}
+      ...> |> Index.index()
+      ...> |> Index.path_types()
+      %{
+        "amount_cents" => :number,
+        "risk_reasons" => {:list, :string},
+        "card.brand" => {:one_of, ["visa", "mastercard", "amex"]}
+      }
+
+      iex> StatifierDatamodel.Index.path_types(nil)
+      %{}
+  """
+  @spec path_types(t() | term()) :: %{optional(String.t()) => value_kind()}
+  def path_types(%__MODULE__{} = index) do
+    index
+    |> entries()
+    |> Enum.flat_map(fn entry ->
+      case value_kind(entry) do
+        nil -> []
+        kind -> [{entry.path, kind}]
+      end
+    end)
+    |> Map.new()
+  end
+
+  def path_types(_not_an_index), do: %{}
+
   @doc """
   Every entry, in document order.
   """
@@ -350,6 +442,51 @@ defmodule StatifierDatamodel.Index do
   end
 
   def under(%__MODULE__{}, _prefix), do: []
+
+  # -- value kinds -----------------------------------------------------------
+
+  @spec value_kind(entry()) :: value_kind() | nil
+  defp value_kind(entry) do
+    case drawable(entry.one_of) do
+      nil -> kind(entry)
+      values -> {:one_of, values}
+    end
+  end
+
+  # A list describes itself through its element type, so a list with no
+  # usable one has no kind - `{:list, nil}` would be an editor rendering a
+  # list of nothing.
+  @spec kind(entry()) :: value_kind() | nil
+  defp kind(%{type: :list, item_type: item_type}), do: wrap(scalar_kind(item_type))
+  defp kind(%{type: type}), do: scalar_kind(type)
+
+  @spec wrap(kind() | nil) :: {:list, kind()} | nil
+  defp wrap(nil), do: nil
+  defp wrap(kind), do: {:list, kind}
+
+  # The nine, mapped onto the expression language's six. `object` and `list`
+  # fall through: neither is a kind, and a nested list is not one either.
+  @spec scalar_kind(type() | nil) :: kind() | nil
+  defp scalar_kind(:string), do: :string
+  defp scalar_kind(:integer), do: :number
+  defp scalar_kind(:decimal), do: :number
+  defp scalar_kind(:boolean), do: :boolean
+  defp scalar_kind(:date), do: :date
+  defp scalar_kind(:datetime), do: :datetime
+  defp scalar_kind(:duration), do: :duration
+  defp scalar_kind(_object_list_or_unknown), do: nil
+
+  # The values an editor can render as choices, or `nil` when there is no
+  # enumeration to draw.
+  @spec drawable(term()) :: [term()] | nil
+  defp drawable([_first | _rest] = values) do
+    if Enum.all?(values, &drawable?/1), do: values, else: nil
+  end
+
+  defp drawable(_empty_or_absent), do: nil
+
+  @spec drawable?(term()) :: boolean()
+  defp drawable?(value), do: is_binary(value) or is_number(value) or is_boolean(value)
 
   # -- normalization ---------------------------------------------------------
 

@@ -514,4 +514,208 @@ defmodule StatifierDatamodel.IndexTest do
       assert supplied.sensitive == MapSet.new(["card.number", "processor"])
     end
   end
+
+  describe "path_types/1 - ADR-0001 decision 11" do
+    # The record states the answer for its own worked shape, so this is the
+    # record's arithmetic pinned rather than the implementation's: "Value
+    # kinds (decision 11): amount_cents => :number, card.brand => {:one_of,
+    # [...]}, card.last4 => :string, card.expires_on => :date,
+    # limits.authorization_window => :duration, risk_reasons => {:list,
+    # :string}, event.name => :string; limits and card are absent, being
+    # objects."
+    #
+    # sabotage: had `scalar_kind(:integer)` answer `:integer`, the document's
+    # own spelling rather than the expression language's - this test, four of
+    # its siblings and the `path_types/1` doctest went red, six failures in
+    # all, and every one of them on an `amount_cents`-shaped row (verified).
+    test "the record's worked shape projects to exactly the map it lists" do
+      assert Index.path_types(worked()) == %{
+               "limits.authorization_window" => :duration,
+               "amount_cents" => :number,
+               "risk_reasons" => {:list, :string},
+               "card.brand" => {:one_of, ["visa", "mastercard", "amex"]},
+               "card.last4" => :string,
+               "card.expires_on" => :date,
+               "event.name" => :string
+             }
+    end
+
+    # The same assertion read the other way: the two object paths of the
+    # worked shape are in the declared-path set and not in this map, which
+    # is the difference between decision 7's projection and decision 11's.
+    #
+    # sabotage: gave `scalar_kind(:object)` the answer `:object` - both paths
+    # appeared in the map and this test, three siblings and the doctest went
+    # red, five failures in all (verified).
+    test "an object path is absent, while staying a declared path" do
+      types = Index.path_types(worked())
+
+      refute Map.has_key?(types, "limits")
+      refute Map.has_key?(types, "card")
+      assert MapSet.member?(Index.declared_paths(worked()), "limits")
+      assert MapSet.member?(Index.declared_paths(worked()), "card")
+    end
+
+    # sabotage: dropped `drawable/1`'s filter so any non-empty `one_of` won -
+    # the map and tuple rows below turned into `{:one_of, ...}` and this test
+    # alone went red, which is the row it is here to hold (verified).
+    test "a one_of holding only undrawable values falls back to the kind" do
+      types =
+        Index.path_types(
+          Index.index(
+            document([
+              %{"path" => "shaped", "type" => "string", "one_of" => [%{"a" => 1}]},
+              %{"path" => "tupled", "type" => "integer", "one_of" => [[1, 2]]},
+              %{"path" => "empty", "type" => "boolean", "one_of" => []},
+              %{"path" => "malformed", "type" => "date", "one_of" => "visa"}
+            ])
+          )
+        )
+
+      assert types == %{
+               "shaped" => :string,
+               "tupled" => :number,
+               "empty" => :boolean,
+               "malformed" => :date
+             }
+    end
+
+    # An entry that would be absent on its type alone is present when it
+    # carries a drawable enumeration: decision 11's row is "any entry
+    # carrying a drawable one_of", and the enumeration wins over the kind
+    # rather than over the presence of a kind.
+    # sabotage: made the kind win instead, with the enumeration only
+    # answering where there was no kind - `shipping` kept its values and the
+    # other three lost theirs; this test, the worked shape and the doctest
+    # went red, three failures in all (verified).
+    test "a drawable one_of wins over the kind, including where there is none" do
+      types =
+        Index.path_types(
+          Index.index(
+            document([
+              %{"path" => "brand", "type" => "string", "one_of" => ["visa", "amex"]},
+              %{"path" => "tier", "type" => "integer", "one_of" => [1, 2, 3]},
+              %{"path" => "consented", "type" => "boolean", "one_of" => [true, false]},
+              %{"path" => "shipping", "type" => "object", "one_of" => ["home", "work"]}
+            ])
+          )
+        )
+
+      assert types == %{
+               "brand" => {:one_of, ["visa", "amex"]},
+               "tier" => {:one_of, [1, 2, 3]},
+               "consented" => {:one_of, [true, false]},
+               "shipping" => {:one_of, ["home", "work"]}
+             }
+    end
+
+    # sabotage: had `scalar_kind(:decimal)` answer `:decimal` - this test alone
+    # went red, on the `price` row, with `count` still `:number` beside it
+    # (verified).
+    test "integer and decimal are both :number, and the rest are themselves" do
+      types =
+        Index.path_types(
+          Index.index(
+            document([
+              %{"path" => "note", "type" => "string"},
+              %{"path" => "count", "type" => "integer"},
+              %{"path" => "price", "type" => "decimal"},
+              %{"path" => "captured?", "type" => "boolean"},
+              %{"path" => "expires_on", "type" => "date"},
+              %{"path" => "authorized_at", "type" => "datetime"},
+              %{"path" => "window", "type" => "duration"}
+            ])
+          )
+        )
+
+      assert types == %{
+               "note" => :string,
+               "count" => :number,
+               "price" => :number,
+               "captured?" => :boolean,
+               "expires_on" => :date,
+               "authorized_at" => :datetime,
+               "window" => :duration
+             }
+    end
+
+    # sabotage: made `wrap/1` answer `{:list, nil}` instead of `nil` - the four
+    # absent rows appeared as lists of nothing and this test alone went red
+    # (verified).
+    test "a list is {:list, kind} only when its item_type names a kind" do
+      types =
+        Index.path_types(
+          Index.index(
+            document([
+              %{"path" => "reasons", "type" => "list", "item_type" => "string"},
+              %{"path" => "amounts", "type" => "list", "item_type" => "integer"},
+              %{"path" => "untyped", "type" => "list"},
+              %{"path" => "of_objects", "type" => "list", "item_type" => "object"},
+              %{"path" => "of_lists", "type" => "list", "item_type" => "list"},
+              %{"path" => "unnameable", "type" => "list", "item_type" => "money"}
+            ])
+          )
+        )
+
+      assert types == %{"reasons" => {:list, :string}, "amounts" => {:list, :number}}
+    end
+
+    # A type outside the closed set is already `nil` by the time this
+    # projection sees it, and `nil` is absent for the same reason an object
+    # is: absence means unknown, never wrong.
+    # sabotage: had `scalar_kind/1`'s catch-all answer `:string` rather than
+    # `nil` - `money` and the untyped entry appeared as strings, and this
+    # test, three siblings and the doctest went red (verified).
+    test "an entry whose type is outside the closed set is absent" do
+      types =
+        Index.path_types(
+          Index.index(
+            document([
+              %{"path" => "money", "type" => "money"},
+              %{"path" => "untyped"},
+              %{"path" => "note", "type" => "string"}
+            ])
+          )
+        )
+
+      assert types == %{"note" => :string}
+    end
+
+    # sabotage: dropped the catch-all clause - `path_types(nil)` raised a
+    # FunctionClauseError instead of answering, and this test and the doctest
+    # that pins it went red (verified).
+    test "total: anything that is not an index projects to the empty map" do
+      assert Index.path_types(nil) == %{}
+      assert Index.path_types(Index.index(["card.brand"])) == %{}
+      assert Index.path_types(%{}) == %{}
+      assert Index.path_types("card.brand") == %{}
+      assert Index.path_types(Index.index(%{"scopes" => []})) == %{}
+    end
+
+    # The vocabulary is the expression language's, not this document's: a
+    # kind this projection emits that predicator does not name would be a
+    # map an editor could not read. Nine types in, seven atoms out.
+    # sabotage: renamed `:duration`'s answer to `:interval`, a kind the
+    # expression language does not have - this test, the worked shape and the
+    # kind-by-kind row went red, which is the point: a map an editor could
+    # not read fails here and not only where the record spells the atom
+    # (verified).
+    test "every kind emitted is one the expression language names" do
+      vocabulary = [:string, :number, :boolean, :date, :datetime, :duration, :list]
+
+      kinds =
+        @worked_document
+        |> Index.index()
+        |> Index.path_types()
+        |> Map.values()
+        |> Enum.flat_map(fn
+          {:one_of, _values} -> []
+          {:list, kind} -> [:list, kind]
+          kind -> [kind]
+        end)
+
+      assert kinds != []
+      assert Enum.all?(kinds, &(&1 in vocabulary))
+    end
+  end
 end
