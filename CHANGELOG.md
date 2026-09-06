@@ -10,6 +10,45 @@ fragment in [`changelog.d/`](changelog.d/README.md); the fragments are assembled
 into a version section at release. See that README for the format and for when a
 change warrants an entry at all.
 
+## [0.4.0] 2026-09-06
+
+A type expression grows one arm. A consumer holding a structural value the
+host never declared can now say what it holds inline, `{:shape, members}`,
+instead of inventing a declaration in the document to point at; the read check
+decides an inline shape against a declaration and against another inline shape
+member-wise, and identity for that arm is member-set-wise rather than by term.
+Nothing a document spells changes, and a document that declares only named
+types reads exactly as it did, which is what makes this arm additive - the
+release is a MINOR under `0.x` because the type expression a caller matches on
+admits a shape it did not before. Beside it, `Compatibility.breaks/2` now
+documents the first element of a break as the *kind*, the row of the
+redefinition table the break came from, so a `case` over the five kinds is
+exhaustive without re-deriving from the two declarations why a row broke. The
+inline shape arm is recorded in the sd-ADR-0001 amendment, accepted on the
+operator's campaign-SF035 ruling.
+
+### Added
+
+- A type expression admits an inline, unnamed shape, `{:shape, members}`, so a
+  consumer holding a structural value the host never declared can say what it
+  holds without inventing a declaration. The read check decides it against a
+  declaration and against another inline shape member-wise, and `to_string/1`
+  renders it.
+
+### Changed
+
+- A break from `Compatibility.breaks/2` documents its first element as the
+  *kind*: the row of the redefinition table the break came from. The five
+  kinds are unchanged and the vocabulary is closed at them, so a `case` over
+  `:field_removed`, `:type_changed`, `:made_required`, `:required_added` and
+  `:made_optional` is exhaustive and a host need not re-derive from the two
+  declarations why a row broke. No result changes shape or value.
+- Identity in the read check is member-set-wise for an inline shape: two
+  inline shapes carrying the same members in a different order are the same
+  type expression. Every other arm still compares by term, no document
+  spelling changes, and a document that declares only named types reads
+  exactly as it did.
+
 ## [0.3.0] 2026-09-06
 
 What `Compatibility.breaks/2` reports changes, and an entry's type may now

@@ -27,7 +27,7 @@ ADR-0006, and ADR-0001 is the record of the re-homing.
 ```elixir
 def deps do
   [
-    {:statifier_datamodel, "~> 0.3"}
+    {:statifier_datamodel, "~> 0.4"}
   ]
 end
 ```
