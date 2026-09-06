@@ -2,6 +2,9 @@
 
 Status: accepted (2026-09-06). Acceptance is the operator's; this record does
 not flip its own status.
+Decision 8 amended - an optional record field does not cover a required shape
+field (proposed 2026-09-06, `sd-7bx`; the amendment is the last section of
+this record).
 
 Origin: `sb-ADR-0006`, "The datamodel document is a typed, three-scope
 declaration, and the declared-path set is its projection", accepted in
@@ -549,6 +552,11 @@ or needs to know that a finding was produced.
   required shape field at all is a question the first embedder's uptake will
   answer with a real case.
 
+  *[Answered 2026-09-06, with `sd-7bx`, by the amendment at the end of this
+  record: the uptake case arrived, and an optional record field does not
+  cover a required shape field. This question is closed; the two above it
+  stay carried.]*
+
 ---
 
 ## Note (2026-09-06): accepted, and the eight readings the flip records
@@ -601,3 +609,83 @@ the record reads as each line below says.
   `one_of` **is** present in `path_types/1` with its values; the row that
   makes an `object` absent is the fall-through for an entry with no drawable
   enumeration, not a gate on the entry's kind.
+
+---
+
+## Amendment (2026-09-06): decision 8, an optional record field does not cover a required shape field
+
+**Status: proposed (2026-09-06), on the operator's campaign-033 ruling
+RQ-033-9.** Narrowing, not additive: it is a breaking change to the read
+check, and it is why the release carrying it is a MINOR under `0.x`. No text
+above this line is edited by this section, and the amendment takes effect
+when `sd-7zl` lands the code and the status flips.
+
+### Context
+
+Decision 8 step 3 reads the shape side's `required?` and is silent on the
+record side's, so a record whose field may be absent still covers a shape
+field that must be present, by name and type alone. The third question in
+"Open questions carried" left that reading standing until the first
+embedder's uptake produced a real case. It has: the typed environment reads
+a record held at a datamodel path against a shape a block requires, and
+under the looser reading a document may declare a field optional and still
+satisfy a read that cannot proceed without it. The check would then report
+satisfied for a document that has not promised the value.
+
+### Decision
+
+**Step 3 of decision 8 reads the record side's `required?` as well.** It now
+runs: `held` names a record and `expected` names a shape -> satisfied when
+for every field of the shape with `required?: true`, the record has a field
+of the same `name`, itself `required?: true`, whose `type` satisfies the
+shape field's `type` under this same check.
+
+Everything else in decision 8 stands as written. Steps 1, 2 and 4 are
+unchanged; unknown stays permissive both ways; there is still no
+record-into-record widening, no union, no inference, and no fifth step.
+
+**The reason is `{:missing, [field names]}`, and there is no new reason.**
+A shape field is *missing* from the record when the record declares no field
+of that name, and equally when it declares one that is optional: in both
+cases the record does not promise the value, which is the one thing step 3
+asks. The names list is what a consumer renders, and it names the shape's
+fields the record failed to promise, whichever way it failed. Decision 8's
+reason vocabulary therefore stays at the five it already names -
+`:unknown`, `:identical`, `:covers`, `{:missing, [field names]}`,
+`:not_assignable` - and the typespec appendix's `reason()` is unchanged. A
+consumer wanting to distinguish *absent* from *present but optional* reads
+the record's declaration for the named field; the relation this package
+defines does not make the distinction, because nothing it decides turns on
+it.
+
+A field the shape marks optional is still not consulted at all, and a record
+field the shape does not name is still ignored. This section narrows exactly
+one clause and nothing else.
+
+### Consequences
+
+- **Breaking for a document that relied on the looser reading.** A record
+  covering a shape today by an optional field stops covering it, and reads
+  that were satisfied become `{:missing, [name]}`. The fix in the document
+  is one key: mark the field `required?: true` where the record does promise
+  the value. The release carrying this is a MINOR under `0.x`, and the
+  change is named in its changelog.
+- **No vocabulary grows.** No new reason atom, no new key, no signature
+  change: `satisfies?/3` and `satisfies/3` keep their names, arities and
+  return types, and `reason()` in the typespec appendix is unchanged.
+- **Coverage and compatibility inherit it.** Decision 10's `missing/3` is a
+  check of a *map* against a shape and is untouched. Decision 9's `breaks/2`
+  already lists "a field optional -> required" as breaking and "a field
+  required -> optional" as compatible on the old reading of step 3; under
+  this amendment the second row is the one that now also narrows what the
+  declaration can cover, and it is the redefinition table, not this section,
+  that decides what a redefinition reports. This amendment changes neither
+  row.
+- **The two remaining carried questions are untouched.** Whether a scope
+  entry's `type` may name a declaration, and whether a field's `one_of` is a
+  hint or a narrowing, stay carried exactly as written.
+
+Implemented by `sd-7zl` (`Types.satisfies/3` and `satisfies?/3` honour the
+record field's `required?`, with the worked shape's `cards.credit_txn` and
+`Settleable` as the case). This section merges at proposed and flips to
+accepted in a separate change once that code is on `main`.
