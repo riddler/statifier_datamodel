@@ -15,6 +15,11 @@ entry's `type` may name a declaration (proposed 2026-09-06, `sd-wj1`; the
 amendment is the last section of this record).
 Note (2026-09-06, `sd-wj1`): that amendment is accepted - its code lands in
 the same change that flips it.
+Note (2026-09-06, `sd-906`): it is the second-to-last section now - the
+`sd-906` amendment below was appended after it.
+Decision 8 and the type-expression grammar of decision 5 amended - a type
+expression admits an inline, unnamed shape beside a declared name (proposed
+2026-09-06, `sd-906`; the amendment is the last section of this record).
 
 Origin: `sb-ADR-0006`, "The datamodel document is a typed, three-scope
 declaration, and the declared-path set is its projection", accepted in
@@ -385,6 +390,16 @@ end
 Every function is total over its admitted input and none raises; the only
 `:error` returns are the two that name a declaration that does not exist,
 because there an empty list would be a false claim.
+
+*[Note 2026-09-06, with `sd-906`: two entries of this appendix are behind
+the amendments below it, which by this record's convention edit no text
+above their own headings. `Types.t()` gains the inline shape arm the last
+section names, and `Compatibility.break()` reads `{:made_optional, name}`
+rather than `{:group_added, name}` since the `sd-wj1` amendment swapped
+the member - which is what `lib/statifier_datamodel/compatibility.ex`
+already spells. `sd-izx` carries the arm into the code and `sd-n51` flips
+the section that names it; whoever next rewrites this appendix wholesale
+reconciles both.]*
 
 ## Worked shape
 
@@ -919,3 +934,279 @@ at proposed and flips to accepted in a separate change once that code is on
 and the change that flips it is this one - the code is the rest of this
 request rather than a commit already on `main`, on the campaign's clause for
 an amendment whose record and code are one bead.]*
+
+---
+
+## Amendment (2026-09-06): a type expression admits an inline, unnamed shape beside a declared name
+
+**Status: proposed (2026-09-06), on the operator's campaign-SF035 ruling
+RQ-SF035-1.** Additive: it grows the type-expression grammar by one arm and
+decision 8's read check by one step, and takes nothing away from a document
+already written. No text above this line is edited by this section, and the
+amendment takes effect when `sd-izx` lands the code and the status flips.
+
+### Context
+
+Decision 5 gives a field's `type` a name-only grammar - "one of the nine
+types above, or the `name` of another declaration" - and decision 8 decides
+a read over exactly that grammar: unknown, identity, a record covering a
+shape, or not satisfied. `StatifierDatamodel.Types.t/0` is the same four
+possibilities in a type: a declared name, one of the nine, an opaque string
+a consumer carries, or unknown. Every structural statement in the system is
+therefore nominal, and a shape that is not declared anywhere cannot be said
+at all.
+
+The first two embedders have produced values that are structural and
+unnamed. A fan-out's collected element is an envelope map carrying `index`,
+`status` and then a `donedata` or a `failure`, assembled by the compiler
+rather than declared by the host; a block's declared summary is the same
+kind of value, computed at a path the host never wrote a declaration for.
+Today a consumer holding one of these has two choices, and both are wrong.
+It can spell the value `{:opaque, "..."}`, which compares by identity and
+nothing else, so a read against a declared shape the envelope genuinely
+covers reports `:not_assignable`. Or it can invent a declaration and inject
+it into the document's `types`, which puts a name into the host's document
+that the host did not write, gives the value a nominal identity it has no
+claim to, and makes the compiler a writer of the datamodel document.
+
+What is missing is a way to say *a map with these members, of these types,
+these ones promised* without naming it. That is one arm of the grammar and
+one step of the read check, and this section adds them.
+
+### Decision
+
+**(a) `t()` gains an inline shape arm.** A type expression may be
+`{:shape, members}`, where `members` is an ordered list of maps, each
+carrying exactly three keys:
+
+```elixir
+@type member :: %{
+        name: String.t(),
+        type: t(),
+        required?: boolean()
+      }
+
+@type t ::
+        {:declared, String.t()}
+        | {:shape, [member()]}
+        | StatifierDatamodel.Index.type()
+        | {:opaque, String.t()}
+        | :unknown
+```
+
+The member spelling mirrors `StatifierDatamodel.Declarations.field/0`'s
+three contract-bearing keys and drops the three that carry no contract here:
+a member has no `label`, because nothing renders a member's name but the
+member's name; no `one_of`, because the `sd-wj1` amendment settled `one_of`
+as a completion hint and an inline shape is not a place a host writes hints;
+and no `item_type`, because `item_type` is a key of a *declaration field*
+and a member's element type has no reader in this package. A member's `type`
+is a `t()` and never `nil`: a spelling that resolved to nothing is
+`:unknown`, which is the value `nil` already normalizes to everywhere a type
+expression is built.
+
+A member whose `name` is not a non-empty string contributes nothing, and a
+repeated member name keeps its first occurrence - the rule `Declarations`
+already uses for a repeated field name and the index for a repeated path.
+
+**(b) Member order is the reason's order; identity is member-set-wise.**
+The list is ordered because `{:missing, [field names]}` is rendered, and
+decision 8 names shape fields in declaration order; an inline shape names
+its unpromised members in member order for the same reason. Order is *not*
+part of identity: two inline shapes carrying the same member names with the
+same types and the same `required?` are the same type expression however
+they are ordered, so step 2 of decision 8 compares an inline shape by
+member set and not by term equality. This is the one place the arm's
+identity is not Elixir's.
+
+**(c) An inline shape is built by a consumer, not written in a document.**
+`Types.parse/2` reads a binary spelling and is unchanged: a document's
+`type` and `item_type` keys are strings, and there is no document syntax for
+an inline shape. Decisions 5, 6, 7, 10 and 11 are therefore untouched - the
+`types` key admits what it admitted, the index normalizes what it
+normalized, `types` still contributes no path, `missing/3` still checks a
+map against a *declared* shape, and `path_types/1` still projects entries.
+An inline shape enters this package only as an argument a consumer hands
+`Types.satisfies/3` or `satisfies?/3`, exactly as `{:opaque, name}` does
+today. Whether a document may one day write one is not decided here; it
+would be its own amendment, and it is not needed by either case above.
+
+**(d) Decision 8 gains one step, and it is member-wise.** An inline shape
+on the *held* side is a fact about what is there, and on the *expected*
+side a constraint a read places. The relation between the two is the one
+step 3 already defines, generalized from a record's fields and a shape's
+fields to any two member sets: `held` covers `expected` when, for every
+member of `expected` with `required?: true`, `held` carries a member of the
+same `name`, itself `required?: true`, whose `type` satisfies the expected
+member's `type` under this same check. An expected member marked optional
+is not consulted; a held member the expectation does not name is ignored.
+`covers` and `{:missing, [names]}` are the answers, exactly as in step 3.
+
+The whole relation, by variant:
+
+| `held` \ `expected` | a declared record | a declared shape | an inline shape |
+|---|---|---|---|
+| **a declared record** | identity only | covers, field-wise (step 3, unchanged) | covers, member-wise (new) |
+| **a declared shape** | identity only | identity only | not assignable (new, and it is the old answer) |
+| **an inline shape** | not assignable (new) | covers, member-wise (new) | covers, member-wise (new) |
+
+Read down the rightmost column and across the bottom row: a record covers an
+inline shape, an inline shape covers a declared shape, and two inline shapes
+compare structurally. The two refusals are deliberate. An inline shape never
+satisfies a *declared record*, because a record's identity is nominal and an
+inline shape has no name to be that record by - decision 5's nominal rule is
+untouched. A *declared shape* held never covers anything but itself, inline
+or declared, because a shape is a constraint and not a fact about what is
+there, which is what step 3 has always said by admitting only a record on
+the held side.
+
+Steps 1, 2 and 4 stand as written: unknown is permissive both ways and is
+still decided first, so any inline shape read against `:unknown` in either
+direction is satisfied; identity is step 2 (by member set, per arm b); and
+anything the table does not satisfy is `:not_assignable`.
+
+**A member's type recurses under the same check**, so an inline shape may
+carry a scalar, a declared name, another inline shape, an opaque string or
+`:unknown`, to any depth. A member whose type is `:unknown` is satisfied
+both ways by step 1, which is how a field with an unresolvable type behaves
+today. Termination is unchanged: an inline shape is a finite term and
+cannot reference itself, so it adds nothing to the cycle discipline; the
+`seen` set decision 8's check already carries is keyed on a pair of
+*declared* names, an inline shape puts no pair into it, and a declared name
+re-entered on the same chain still discharges as covered.
+
+**The reason vocabulary does not grow.** `:unknown`, `:identical`,
+`:covers`, `{:missing, [field names]}` and `:not_assignable` are still the
+five, and `t:StatifierDatamodel.Types.reason/0` is unchanged. A consumer
+that wants to know *which* side was inline reads the type expression it
+passed in.
+
+**(e) What an inline shape cannot do.** Three exclusions, each a
+consequence of its being unnamed rather than a restriction added on top:
+
+1. **It cannot be referenced by name.** It has no `name`, it is never an
+   entry of the `types` key, and no `{:declared, name}` resolves to one.
+   `StatifierDatamodel.Declarations.t/0` is still a map of *declarations*,
+   and `fetch/2` never answers with an inline shape.
+2. **It carries no `one_of`.** Neither the shape nor any member has the key.
+   `one_of` is a completion hint an editor draws from a document (the
+   `sd-wj1` amendment), and an inline shape is not written in a document.
+3. **It is not a declaration entry, and never widens into one.** It has no
+   `kind`: it is neither a record nor a shape in decision 5's nominal sense,
+   and the table in (d) is the whole of what it may be read as. In
+   particular there is no rule by which an inline shape becomes the record
+   it structurally resembles.
+
+**(f) Decision 9's six-row table gains no row.** `breaks/2` compares two
+*declarations*, whose field types come from `Types.parse/2`, and (c) leaves
+`parse/2` reading only a binary spelling: no inline shape can appear on
+either side of a redefinition, so there is no narrowing for a row to name.
+The six rows and the five `break()` members stand exactly as the `sd-wj1`
+amendment left them.
+
+Stated for the amendment that would admit a document spelling: an inline
+shape differing in any member is a different type expression under (b), so
+it would report `{:type_changed, name}` on the field carrying it, under the
+row that already exists. That is coarse - adding an optional member to an
+inline shape takes nothing away and would still report a break - and
+refining it would need a new `break()` member. This section adds neither
+the row nor the member, and names the coarseness so the later amendment
+does not rediscover it.
+
+**(g) Value kinds are unchanged.** Decision 11's projection is untouched in
+both its input and its output. A path typed by an inline shape - were a
+document ever to spell one - is absent from `path_types/1`, on the same
+fall-through row that makes an `object` absent: it is not one of the six
+kinds an expression editor draws. No kind is added, none is renamed, and
+the expression language's vocabulary does not move.
+
+### Worked example
+
+Card processing, and the case that forced the arm. A fan-out authorizes a
+chunk of cards and each child answers with an envelope; the parent's
+collected element is that envelope, typed by the compiler:
+
+```elixir
+chunk_envelope =
+  {:shape,
+   [
+     %{name: "index", type: :integer, required?: true},
+     %{name: "status", type: :string, required?: true},
+     %{
+       name: "donedata",
+       type:
+         {:shape,
+          [
+            %{name: "authorized_count", type: :integer, required?: true},
+            %{name: "declined_count", type: :integer, required?: true}
+          ]},
+       required?: false
+     }
+   ]}
+```
+
+Nothing here is declared: the host's document declares `cards.credit_txn`
+and `Settleable`, not this. The document does declare the summary a
+downstream leaf reads, as a shape:
+
+```json
+{
+  "name": "ChunkSummary",
+  "kind": "shape",
+  "label": "Chunk summary",
+  "fields": [
+    {"name": "authorized_count", "type": "integer", "required?": true},
+    {"name": "declined_count", "type": "integer", "required?": true}
+  ]
+}
+```
+
+Three reads, one per new cell of the table in (d):
+
+| Read | `held` | `expected` | Answer |
+|---|---|---|---|
+| the envelope's `donedata` against the declared summary | the inner inline shape | `{:declared, "ChunkSummary"}` | `:covers` - both required members are promised and their types are identical |
+| a declared record written back over the summary's path | `{:declared, "cards.chunk_summary"}`, a record with the same two required fields | the inner inline shape | `:covers` - the record promises both members |
+| the envelope against another envelope | `chunk_envelope` | the same three members, `donedata` first | `:identical` - identity is member-set-wise, so the reordering is no difference |
+
+And one refusal: the whole envelope read against `{:declared, "ChunkSummary"}`
+is `{:missing, ["authorized_count", "declined_count"]}`, because the
+envelope's own members are `index`, `status` and `donedata` - the summary is
+one member down, and this package widens nothing to find it.
+
+### Consequences
+
+- **Additive for every document and every consumer already written.** No
+  document spelling changes, `parse/2` is unchanged, no reason atom is added
+  or removed, and no function gains or loses an argument. A consumer that
+  never builds an inline shape sees the same answers it sees today, because
+  the new step is reachable only from an argument only such a consumer
+  passes. The release carrying it is a MINOR under `0.x` on the grown
+  grammar, not on a break.
+- **`satisfies/3` and `satisfies?/3` keep their names, arities and return
+  types**, and gain a new admissible value in the `held` and `expected`
+  positions. `Types.to_string/1` renders the new arm; how it renders is the
+  code's call, and this record requires only that the rendering is a
+  rendering and not an identity, which is what that function already
+  promises.
+- **Step 2 stops being term equality.** Comparing an inline shape by member
+  set rather than by term is the one behavioural subtlety in the arm, and it
+  is where `sd-izx` will earn a test: two inline shapes differing only in
+  member order are `:identical`, and a `{:missing, ...}` names members in
+  the *expected* side's order.
+- **The consumers spell it, and this record decides nothing for them.**
+  statifier_blocks' typed environment and its ADR-0011 cite this spelling
+  for a compiler-assembled value, and statifier-ui reads whatever the
+  environment holds. What either package builds an inline shape *for*, when
+  it prefers a declaration, and what severity it assigns an unsatisfied read
+  are decisions in their own records, on this package's stance that an
+  unsatisfied read is a fact and not a verdict (decision 12).
+- **One question is opened, deliberately.** Whether a document may write an
+  inline shape - a `type` key that is a map rather than a string - is not
+  answered here, because neither embedder needs it and admitting it would
+  move decisions 5, 6, 7 and 9 at once. It is carried, not resolved.
+
+Implemented by `sd-izx` (`Types.t/0`'s arm, step 2's member-set identity and
+decision 8's member-wise step, with the chunk envelope above as the case).
+This section merges at proposed and flips to accepted in a separate change
+(`sd-n51`) once that code is on `main`.
