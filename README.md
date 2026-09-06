@@ -262,6 +262,12 @@ never an empty list.
     iex> Compatibility.breaks(nil, nil)
     :error
 
+Each break names its kind first and the field second. The kind is the row of
+the record's table the break came from - `:field_removed`, `:type_changed`,
+`:made_required`, `:required_added` or `:made_optional`, one per breaking row
+and no others - so a host words a warning by matching on it rather than by
+comparing the two declarations again.
+
 Both changes break: dropping `authorized_at` takes the field away, and
 relaxing `currency` takes away the promise that the value is there, which
 the read check has read as *not covered* since decision 8 was amended. What
