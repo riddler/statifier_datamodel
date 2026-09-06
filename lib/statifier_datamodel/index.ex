@@ -62,10 +62,17 @@ defmodule StatifierDatamodel.Index do
       put a `nil` in the set; a set with a `nil` in it is not a set of
       declared paths, and the record admits no such entry in the first
       place.
-    * **The type set is closed** (decision 4). A `type` or `item_type`
-      outside it normalizes to `nil` - unknown, on the same stance as an
-      undeclared path - rather than being carried through as a type this
-      package would then be rendering.
+    * **The type set is closed, and a declaration name resolves beside
+      it** (decision 4; decision 3 as amended 2026-09-06). A `type` or
+      `item_type` is read as one of the nine first and then as a name the
+      document's `types` key declares, which normalizes to
+      `{:declared, name}`; a spelling that names neither normalizes to
+      `nil` - unknown, on the same stance as an undeclared path - rather
+      than being carried through as a type this package would then be
+      rendering. A `type` that is not a string at all normalizes to `nil`
+      on the same reading, an inline shape map included: the amendment
+      gives an inline shape no document spelling, so a map here names
+      nothing and is unknown like any other spelling that does.
     * **A repeated path keeps its first occurrence** in document order.
       This is not a ruling on the record's open question about collisions
       across scopes: the declared-path set is a set either way, and a
@@ -392,9 +399,11 @@ defmodule StatifierDatamodel.Index do
       `boolean` is `:boolean`; `date`, `datetime` and `duration` are
       themselves.
     * a `list` whose `item_type` is one of those is `{:list, kind}`.
-    * `object`, a `list` with no usable `item_type`, and an entry whose
-      type is outside the closed set are **absent from the map**. Absence
-      means unknown, not wrong.
+    * `object`, a `list` with no usable `item_type`, an entry whose type
+      names a declaration, and an entry whose type names nothing at all
+      are **absent from the map**. Absence means unknown, not wrong: a
+      declaration-typed entry is a record, and a record is no more one of
+      the expression language's kinds than an `object` is.
 
       iex> alias StatifierDatamodel.Index
       iex> %{"scopes" => [%{"scope" => "local", "entries" => [
@@ -460,9 +469,13 @@ defmodule StatifierDatamodel.Index do
   The declared type of `path`, or `nil` when the document does not declare
   it - unknown, never wrong (decision 12).
 
-  `nil` is also what a declared entry whose `type` is outside the closed
-  set gets, for the same reason: this module reports what it can name and
-  claims nothing about the rest.
+  A declared entry answers one of the nine, or `{:declared, name}` where
+  its `type` names a declaration the document's `types` key carries
+  (decision 3 as amended 2026-09-06). `nil` is what an entry whose `type`
+  names neither gets - a spelling outside the closed set that no
+  declaration claims, and anything that is not a string at all - for the
+  same reason: this module reports what it can name and claims nothing
+  about the rest.
   """
   @spec type(t(), term()) :: entry_type() | nil
   def type(%__MODULE__{} = index, path) do
