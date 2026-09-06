@@ -5,12 +5,16 @@ not flip its own status.
 Decision 8 amended - an optional record field does not cover a required shape
 field (proposed 2026-09-06, `sd-7bx`; the amendment is the last section of
 this record).
+Note (2026-09-06, `sd-wj1`): it is the second-to-last section now - the
+`sd-wj1` amendment below was appended after it.
 Note (2026-09-06, `sd-ght`): that amendment is accepted - its code is on
 `main` in `21ca866` and shipped in `v0.2.0`.
 Decisions 3, 5, 6, 7 and 9 amended - a field's `one_of` is a completion hint
 and never a break, a field going required -> optional is, and a scope
 entry's `type` may name a declaration (proposed 2026-09-06, `sd-wj1`; the
 amendment is the last section of this record).
+Note (2026-09-06, `sd-wj1`): that amendment is accepted - its code lands in
+the same change that flips it.
 
 Origin: `sb-ADR-0006`, "The datamodel document is a typed, three-scope
 declaration, and the declared-path set is its projection", accepted in
@@ -741,7 +745,7 @@ status line at the head of this section now reads accepted.]*
 
 ## Amendment (2026-09-06): a field's `one_of` is a completion hint, a field going required -> optional is a break, and a scope entry's `type` may name a declaration
 
-**Status: proposed (2026-09-06), on the operator's campaign-034 ruling
+**Status: accepted (2026-09-06), on the operator's campaign-034 ruling
 RQ-034-4.** Three clauses, two of which move in opposite directions: a
 redefinition may now do something it could not (arm a), a document may now
 declare something it could not (arm b), and one redefinition that used to be
@@ -749,6 +753,10 @@ compatible is now breaking (the row arm a's pass forced). Between them they
 are why the release carrying this is a MINOR under `0.x`. No text above this
 line is edited by this section, and the amendment takes effect when `sd-wj1`
 lands the code and the status flips.
+
+*[Note 2026-09-06, with `sd-wj1`: it has, in the same change - the status
+line above reads accepted, and the code it names is the rest of this
+request.]*
 
 ### Context
 
@@ -906,3 +914,8 @@ Implemented by `sd-wj1` (`Compatibility.breaks/2`'s six rows, and
 with the worked shape's `cards.credit_txn` as the case). This section merges
 at proposed and flips to accepted in a separate change once that code is on
 `main`.
+
+*[Note 2026-09-06, with `sd-wj1`: it merged at proposed in its own request,
+and the change that flips it is this one - the code is the rest of this
+request rather than a commit already on `main`, on the campaign's clause for
+an amendment whose record and code are one bead.]*
