@@ -1,5 +1,11 @@
 # StatifierDatamodel
 
+[![CI](https://github.com/riddler/statifier_datamodel/actions/workflows/ci.yml/badge.svg)](https://github.com/riddler/statifier_datamodel/actions/workflows/ci.yml)
+[![Hex.pm Version](https://img.shields.io/hexpm/v/statifier_datamodel.svg)](https://hex.pm/packages/statifier_datamodel)
+[![Hex Downloads](https://img.shields.io/hexpm/dt/statifier_datamodel.svg)](https://hex.pm/packages/statifier_datamodel)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/statifier_datamodel/)
+[![License](https://img.shields.io/hexpm/l/statifier_datamodel.svg)](https://github.com/riddler/statifier_datamodel/blob/main/LICENSE)
+
 The datamodel document and what can be decided from it, with no dependency on
 the block editor, the compiler, or the UI.
 
@@ -25,8 +31,6 @@ def deps do
   ]
 end
 ```
-
-Not yet published to Hex.
 
 ## What it answers
 
