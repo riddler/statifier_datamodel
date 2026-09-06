@@ -736,6 +736,45 @@ defmodule StatifierDatamodel.IndexTest do
   end
 
   describe "path_types/1 - ADR-0001 decision 11" do
+    # The inline shape arm (ADR-0001 amended 2026-09-06, (c) and (g)) leaves
+    # decision 11 alone in both its input and its output: there is no
+    # document spelling for an inline shape, so an entry whose `type` is a
+    # map is unknown, and the path is absent from the value kinds on the same
+    # fall-through row that makes an `object` absent.
+    #
+    # sabotage: had the entry-type reader answer `:object` for a map instead
+    # of leaving it unknown - `Index.type/2` answered `:object` and this went
+    # red (verified).
+    test "an entry whose type is a map contributes no type and no value kind" do
+      index =
+        Index.index(%{
+          "version" => 1,
+          "scopes" => [
+            %{
+              "scope" => "local",
+              "label" => "Local",
+              "entries" => [
+                %{
+                  "name" => "envelope",
+                  "path" => "envelope",
+                  "label" => "Envelope",
+                  "type" => %{"index" => "integer", "status" => "string"}
+                },
+                %{
+                  "name" => "amount_cents",
+                  "path" => "amount_cents",
+                  "label" => "Amount",
+                  "type" => "integer"
+                }
+              ]
+            }
+          ]
+        })
+
+      assert Index.type(index, "envelope") == nil
+      assert Index.path_types(index) == %{"amount_cents" => :number}
+    end
+
     # The record states the answer for its own worked shape, so this is the
     # record's arithmetic pinned rather than the implementation's: "Value
     # kinds (decision 11): amount_cents => :number, card.brand => {:one_of,

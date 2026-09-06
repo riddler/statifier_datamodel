@@ -648,4 +648,450 @@ defmodule StatifierDatamodel.TypesTest do
       assert Types.satisfies?(declarations, 42, {:declared, "Settleable"}) == true
     end
   end
+
+  # ADR-0001's amendment of 2026-09-06, worked example: the fan-out envelope
+  # the compiler assembles, and the summary the host's document declares.
+  @envelope_document %{
+    "version" => 1,
+    "scopes" => [],
+    "types" => [
+      %{
+        "name" => "ChunkSummary",
+        "kind" => "shape",
+        "label" => "Chunk summary",
+        "fields" => [
+          %{"name" => "authorized_count", "type" => "integer", "required?" => true},
+          %{"name" => "declined_count", "type" => "integer", "required?" => true}
+        ]
+      },
+      %{
+        "name" => "cards.chunk_summary",
+        "kind" => "record",
+        "label" => "Chunk summary, written back",
+        "fields" => [
+          %{"name" => "authorized_count", "type" => "integer", "required?" => true},
+          %{"name" => "declined_count", "type" => "integer", "required?" => true}
+        ]
+      }
+    ]
+  }
+
+  defp envelope_declarations, do: Declarations.from_document(@envelope_document)
+
+  # The record's `chunk_envelope`, transcribed.
+  defp summary_members do
+    [
+      %{name: "authorized_count", type: :integer, required?: true},
+      %{name: "declined_count", type: :integer, required?: true}
+    ]
+  end
+
+  defp chunk_envelope do
+    {:shape,
+     [
+       %{name: "index", type: :integer, required?: true},
+       %{name: "status", type: :string, required?: true},
+       %{name: "donedata", type: {:shape, summary_members()}, required?: false}
+     ]}
+  end
+
+  describe "the inline shape arm - ADR-0001 amended 2026-09-06" do
+    # sabotage: gave `parse/2` a clause reading a list of maps into an inline
+    # shape, which is the document spelling arm (c) refuses - this went red
+    # on the list assertion (verified).
+    test "a document is never a source of one: parse/2 is unchanged" do
+      declarations = envelope_declarations()
+
+      assert Types.parse(declarations, "ChunkSummary") == {:declared, "ChunkSummary"}
+
+      # The only spellings a document can write, and none of them is a shape.
+      assert Types.parse(declarations, %{"authorized_count" => "integer"}) == :unknown
+      assert Types.parse(declarations, [%{"name" => "authorized_count"}]) == :unknown
+      assert Types.parse(declarations, {:shape, summary_members()}) == :unknown
+    end
+
+    # sabotage: had `member_to_string/1` drop the `?` it marks an unpromised
+    # member with - the envelope's rendering went red (verified).
+    test "to_string/1 renders the arm, and renders an unpromised member as one" do
+      assert Types.to_string({:shape, summary_members()}) ==
+               "{authorized_count: integer, declined_count: integer}"
+
+      assert Types.to_string(chunk_envelope()) ==
+               "{index: integer, status: string, " <>
+                 "donedata?: {authorized_count: integer, declined_count: integer}}"
+
+      assert Types.to_string({:shape, []}) == "{}"
+    end
+
+    # Step 1. Unknown is permissive both ways for the new arm exactly as for
+    # every other, and is still decided first.
+    # sabotage: had `resolve/2` answer `{:opaque, name}` for a name the
+    # document does not declare instead of `:unknown` - the two undeclared
+    # reads stopped being permissive and this went red (verified).
+    test "step 1: unknown is permissive in both directions" do
+      declarations = envelope_declarations()
+
+      assert Types.satisfies(declarations, chunk_envelope(), :unknown) == :unknown
+      assert Types.satisfies(declarations, :unknown, chunk_envelope()) == :unknown
+
+      assert Types.satisfies(declarations, chunk_envelope(), {:declared, "Nothing"}) == :unknown
+      assert Types.satisfies(declarations, {:declared, "Nothing"}, chunk_envelope()) == :unknown
+    end
+
+    # sabotage: dropped the member-set identity check from the two-inline-
+    # shapes clause of `decide/4`, leaving it member-wise - the reordered
+    # pair answered `:covers` rather than `:identical` (verified).
+    test "step 2: identity is member-set-wise, not term equality" do
+      declarations = envelope_declarations()
+
+      reordered =
+        {:shape,
+         [
+           %{name: "donedata", type: {:shape, summary_members()}, required?: false},
+           %{name: "status", type: :string, required?: true},
+           %{name: "index", type: :integer, required?: true}
+         ]}
+
+      assert Types.satisfies(declarations, chunk_envelope(), reordered) == :identical
+      assert Types.satisfies(declarations, reordered, chunk_envelope()) == :identical
+
+      # ... and a nested inline shape compares the same way its parent does.
+      nested_reordered =
+        {:shape,
+         [
+           %{name: "index", type: :integer, required?: true},
+           %{name: "status", type: :string, required?: true},
+           %{
+             name: "donedata",
+             type: {:shape, Enum.reverse(summary_members())},
+             required?: false
+           }
+         ]}
+
+      assert Types.satisfies(declarations, chunk_envelope(), nested_reordered) == :identical
+    end
+
+    # sabotage: had `covered?/4` answer true without comparing the two member
+    # types - the retyped member covered and this went red (verified).
+    test "step 2's negative: a member differing in type or in required? is not identity" do
+      declarations = envelope_declarations()
+
+      retyped =
+        {:shape,
+         [
+           %{name: "authorized_count", type: :string, required?: true},
+           %{name: "declined_count", type: :integer, required?: true}
+         ]}
+
+      assert Types.satisfies(declarations, {:shape, summary_members()}, retyped) ==
+               {:missing, ["authorized_count"]}
+
+      relaxed =
+        {:shape,
+         [
+           %{name: "authorized_count", type: :integer, required?: false},
+           %{name: "declined_count", type: :integer, required?: true}
+         ]}
+
+      # Not identical, but the relaxed side asks for less, so it is covered.
+      assert Types.satisfies(declarations, {:shape, summary_members()}, relaxed) == :covers
+
+      assert Types.satisfies(declarations, relaxed, {:shape, summary_members()}) ==
+               {:missing, ["authorized_count"]}
+    end
+
+    # sabotage: made the `{:declared, held}, {:shape, expected}` clause of
+    # `decide/4` answer `:not_assignable` outright - the record read against
+    # the envelope's inner shape went red (verified).
+    test "step 3: a declared record covers an inline shape, member-wise" do
+      declarations = envelope_declarations()
+
+      assert Types.satisfies(
+               declarations,
+               {:declared, "cards.chunk_summary"},
+               {:shape, summary_members()}
+             ) == :covers
+
+      assert Types.satisfies?(
+               declarations,
+               {:declared, "cards.chunk_summary"},
+               {:shape, summary_members()}
+             ) == true
+    end
+
+    # sabotage: dropped the `%{required?: false}` clause of `covered?/4` - the
+    # record's optional `declined_count` covered the promised member and this
+    # went red (verified).
+    test "step 3's negative: a record missing a promised member names it" do
+      declarations =
+        declarations([
+          %{
+            "name" => "cards.partial",
+            "kind" => "record",
+            "label" => "Partial",
+            "fields" => [
+              %{"name" => "authorized_count", "type" => "integer", "required?" => true},
+              %{"name" => "declined_count", "type" => "integer"}
+            ]
+          }
+        ])
+
+      assert Types.satisfies(
+               declarations,
+               {:declared, "cards.partial"},
+               {:shape, summary_members()}
+             ) == {:missing, ["declined_count"]}
+    end
+
+    # sabotage: made the `{:shape, held}, {:declared, expected}` clause of
+    # `decide/4` answer `:not_assignable` outright - the summary read against
+    # `ChunkSummary` went red (verified).
+    test "step 3: an inline shape covers a declared shape, member-wise" do
+      declarations = envelope_declarations()
+
+      assert Types.satisfies(
+               declarations,
+               {:shape, summary_members()},
+               {:declared, "ChunkSummary"}
+             ) == :covers
+    end
+
+    # sabotage: had `member_wise/4` merge a member's nested inline shape into
+    # the held side's names, which is the widening this refusal forbids - the
+    # envelope covered the summary and this went red (verified).
+    test "step 3's negative: the whole envelope does not cover the summary" do
+      declarations = envelope_declarations()
+
+      # The record's own refusal: the summary is one member down, and this
+      # package widens nothing to find it.
+      assert Types.satisfies(declarations, chunk_envelope(), {:declared, "ChunkSummary"}) ==
+               {:missing, ["authorized_count", "declined_count"]}
+    end
+
+    # sabotage: had two inline shapes answer `:not_assignable` whenever they
+    # are not identical, leaving the arm with identity only - the `wider` pair
+    # went red (verified).
+    test "step 3: two inline shapes compare structurally, and name what is unpromised" do
+      declarations = envelope_declarations()
+
+      wider =
+        {:shape,
+         [
+           %{name: "authorized_count", type: :integer, required?: true},
+           %{name: "declined_count", type: :integer, required?: true},
+           %{name: "settled_at", type: :datetime, required?: false}
+         ]}
+
+      assert Types.satisfies(declarations, wider, {:shape, summary_members()}) == :covers
+
+      assert Types.satisfies(declarations, {:shape, summary_members()}, wider) == :covers
+
+      demanding =
+        {:shape,
+         [
+           %{name: "declined_count", type: :integer, required?: true},
+           %{name: "settled_at", type: :datetime, required?: true},
+           %{name: "authorized_count", type: :integer, required?: true}
+         ]}
+
+      # Named in the expected side's own member order, not the held side's.
+      assert Types.satisfies(declarations, {:shape, summary_members()}, demanding) ==
+               {:missing, ["settled_at"]}
+    end
+
+    # sabotage: made the `{:shape, held}, {:declared, expected}` clause answer
+    # member-wise for a record too - an inline shape satisfied a declared
+    # record and this went red on the first assertion (verified).
+    test "the two refusals: nominal identity is untouched" do
+      declarations = envelope_declarations()
+
+      # An inline shape has no name to be a record by, however well it fits.
+      assert Types.satisfies(
+               declarations,
+               {:shape, summary_members()},
+               {:declared, "cards.chunk_summary"}
+             ) == :not_assignable
+
+      # A declared shape held is a constraint, not a fact about what is there.
+      assert Types.satisfies(
+               declarations,
+               {:declared, "ChunkSummary"},
+               {:shape, summary_members()}
+             ) == :not_assignable
+
+      # And the arm reaches nothing else in the grammar.
+      assert Types.satisfies(declarations, {:shape, summary_members()}, :object) ==
+               :not_assignable
+
+      assert Types.satisfies(declarations, :object, {:shape, summary_members()}) ==
+               :not_assignable
+
+      assert Types.satisfies(declarations, {:shape, summary_members()}, {:opaque, "Summary"}) ==
+               :not_assignable
+    end
+
+    # sabotage: had `covered?/4` compare two member types by term instead of
+    # recursing through `decide/4` - the nested record-against-inline-shape
+    # read went red (verified).
+    test "a member's type recurses under the same check, to any depth" do
+      declarations = envelope_declarations()
+
+      held =
+        {:shape,
+         [
+           %{
+             name: "donedata",
+             type:
+               {:shape,
+                [%{name: "inner", type: {:declared, "cards.chunk_summary"}, required?: true}]},
+             required?: true
+           }
+         ]}
+
+      expected =
+        {:shape,
+         [
+           %{
+             name: "donedata",
+             type:
+               {:shape, [%{name: "inner", type: {:shape, summary_members()}, required?: true}]},
+             required?: true
+           }
+         ]}
+
+      assert Types.satisfies(declarations, held, expected) == :covers
+
+      mismatched =
+        {:shape,
+         [
+           %{
+             name: "donedata",
+             type: {:shape, [%{name: "inner", type: :string, required?: true}]},
+             required?: true
+           }
+         ]}
+
+      assert Types.satisfies(declarations, held, mismatched) == {:missing, ["donedata"]}
+    end
+
+    # sabotage: the same term comparison in `covered?/4`, which step 1 never
+    # reaches through - both directions went red (verified).
+    test "a member whose type is unknown is satisfied both ways" do
+      declarations = envelope_declarations()
+
+      loose = {:shape, [%{name: "authorized_count", type: :unknown, required?: true}]}
+      strict = {:shape, [%{name: "authorized_count", type: :integer, required?: true}]}
+
+      assert Types.satisfies(declarations, loose, strict) == :covers
+      assert Types.satisfies(declarations, strict, loose) == :covers
+    end
+
+    # sabotage: dropped the `%{required?: false}` clause of `covered?/4` - an
+    # unpromised held member covered a promised expected one and this went
+    # red (verified).
+    test "decision 8's required?-ness rule applies member-wise" do
+      declarations = envelope_declarations()
+
+      unpromised = {:shape, [%{name: "authorized_count", type: :integer, required?: false}]}
+      promised = {:shape, [%{name: "authorized_count", type: :integer, required?: true}]}
+
+      assert Types.satisfies(declarations, unpromised, promised) ==
+               {:missing, ["authorized_count"]}
+
+      assert Types.satisfies(declarations, promised, unpromised) == :covers
+    end
+
+    # sabotage: dropped the `member/2` name guard and the `Enum.uniq_by/2`
+    # from `resolve/2`'s inline-shape clause - a repeated name took its last
+    # occurrence and an unnamed member became one called `nil`, and this went
+    # red (verified).
+    test "a malformed member normalizes rather than raising" do
+      declarations = envelope_declarations()
+
+      # A repeated name keeps its first occurrence, as a repeated field name
+      # does; the second, which does not satisfy, is not consulted, so the
+      # normalized shape is the single-member one it is read against.
+      repeated =
+        {:shape,
+         [
+           %{name: "authorized_count", type: :integer, required?: true},
+           %{name: "authorized_count", type: :string, required?: true}
+         ]}
+
+      assert Types.satisfies(
+               declarations,
+               repeated,
+               {:shape, [%{name: "authorized_count", type: :integer, required?: true}]}
+             ) == :identical
+
+      # A member without a usable name contributes nothing, on either side.
+      unnamed = {:shape, [%{name: "", type: :integer, required?: true}, %{type: :integer}]}
+
+      assert Types.satisfies(declarations, unnamed, {:shape, []}) == :identical
+
+      # A member with no type at all is unknown, which is permissive.
+      untyped = {:shape, [%{name: "authorized_count", required?: true}]}
+
+      assert Types.satisfies(
+               declarations,
+               untyped,
+               {:shape, [%{name: "authorized_count", type: :integer, required?: true}]}
+             ) == :covers
+
+      # `required?` follows the optional-boolean convention: only `true` is a
+      # promise.
+      absent_required = {:shape, [%{name: "authorized_count", type: :integer}]}
+
+      assert Types.satisfies(
+               declarations,
+               absent_required,
+               {:shape, [%{name: "authorized_count", type: :integer, required?: true}]}
+             ) == {:missing, ["authorized_count"]}
+
+      # And a shape whose members are not a list at all is outside the
+      # grammar, which is unknown - the check stays total.
+      assert Types.satisfies(declarations, {:shape, :not_a_list}, :integer) == :unknown
+    end
+
+    # sabotage: dropped the `kind:` matches from `covers/4`, so any two
+    # declarations compared member-wise - `Settleable` held satisfied
+    # `cards.credit_txn` and this went red (verified).
+    test "a document holding no inline shape answers exactly as it did before" do
+      declarations = worked()
+
+      # The whole of decision 8 over the worked shape, unchanged by the arm.
+      assert Types.satisfies(declarations, {:declared, "cards.credit_txn"}, :unknown) == :unknown
+      assert Types.satisfies(declarations, :date, :date) == :identical
+
+      assert Types.satisfies(
+               declarations,
+               {:declared, "cards.credit_txn"},
+               {:declared, "cards.credit_txn"}
+             ) == :identical
+
+      assert Types.satisfies(
+               declarations,
+               {:declared, "cards.credit_txn"},
+               {:declared, "Settleable"}
+             ) == :covers
+
+      assert Types.satisfies(
+               declarations,
+               {:declared, "cards.credit_txn"},
+               {:declared, "Refundable"}
+             ) == {:missing, ["settled_at"]}
+
+      assert Types.satisfies(
+               declarations,
+               {:declared, "Settleable"},
+               {:declared, "cards.credit_txn"}
+             ) == :not_assignable
+
+      assert Types.satisfies(
+               worked_with_optional("authorized_at"),
+               {:declared, "cards.credit_txn"},
+               {:declared, "Settleable"}
+             ) == {:missing, ["authorized_at"]}
+    end
+  end
 end
