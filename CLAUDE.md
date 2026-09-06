@@ -56,7 +56,7 @@ irreversible step, and report.
 |---|---|---|
 | `bd` task tracking (`create`, `claim`, `update`, `note`) | any time | never - this is the conservative profile too |
 | `mix quality` in any profile | any time | never - running the gate costs nothing but time |
-| `git commit` on the bead's branch | a campaign carrying the operator's explicit consent **and** the bead's work complete **and** full `mix quality` green; a change touching no Elixir code has no gate to run and may commit on review of the diff alone | on `main`, on a red gate, on a `--profile loop` or otherwise scoped run, or with unrelated changes in the tree |
+| `git commit` on the bead's branch | a campaign carrying the operator's explicit consent **and** the bead's work complete **and** full `mix quality` green; a change touching no Elixir code and no path in `gate.also_gated_paths` has no gate to run and may commit on review of the diff alone | on `main`, on a red gate, on a `--profile loop` or otherwise scoped run, or with unrelated changes in the tree |
 | `git push`, `gh pr create` | the same consent, **and** the terminology scan in the umbrella's `docs/terminology-firewall.md` clean over the full outbound content | any scan hit - that is a hard stop, not something to rephrase past |
 | merging a campaign PR | a campaign consent the operator adopted verbatim that names automatic merges, with every named condition met (full gate green, CI green, firewall scan clean with a positive control, any named review gate passed) | outside such a consent; any named condition unmet; any PR the consent's carve-outs hold for the operator |
 | `bd close <id>` | never for a mirrored bead whose other half is not merged to its own repo's `origin/main`; a mirrored bead whose other half has ALSO landed may be closed by the campaign conductor under a consent naming this exception, both halves together, each verified against its remote; otherwise the operator's call | for a bead whose description carries a `mirrors:` line while its other half is unlanded, campaign consent included |
@@ -216,7 +216,11 @@ The rules that do not wait to be looked up:
   gate: a `--profile loop` run, like any scoped or profiled run, is never
   evidence for a claim that the gate is green.
 - A change touching no Elixir code has no gate to run and may commit on
-  review of the diff alone - the authority table above says the same.
+  review of the diff alone - the authority table above says the same. The
+  exception is any path the manifest lists under `gate.also_gated_paths`:
+  `README.md` is there because `test/readme_test.exs` runs its `iex>` blocks
+  as doctests, so a README-only diff can turn the suite red and runs the full
+  gate like any other gated change.
 - This gate is deliberately smaller than statifier-ex's, and `.quality.exs`
   records that decision. Documentation may point at the gate; it never
   enlarges it.
