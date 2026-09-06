@@ -155,6 +155,42 @@ promise the value.
     iex> Types.satisfies(loose, {:declared, "cards.credit_txn"}, {:declared, "Settleable"})
     {:missing, ["authorized_at"]}
 
+### An inline, unnamed shape
+
+A consumer holding a value the host never declared - a fan-out's collected
+envelope, a block's computed summary - says what it holds with
+`{:shape, members}`, where each member carries `name`, `type` and
+`required?`. It is read the same way a declaration is: a record covers it
+member-wise, it covers a declared shape, and two inline shapes compare
+structurally. It never satisfies a declared **record**, whose identity is
+nominal, and a declared shape held covers nothing but itself. Identity for
+the arm is member-set-wise, so member order is a rendering decision and not
+a difference. There is no document spelling for one: `parse/2` reads only
+strings, and an inline shape enters as an argument to the read check.
+
+    iex> alias StatifierDatamodel.{Declarations, Types}
+    iex> declarations = Declarations.from_document(%{"types" => [
+    ...>   %{"name" => "ChunkSummary", "kind" => "shape", "label" => "Chunk summary",
+    ...>     "fields" => [
+    ...>       %{"name" => "authorized_count", "type" => "integer", "required?" => true},
+    ...>       %{"name" => "declined_count", "type" => "integer", "required?" => true}]}]})
+    iex> summary = {:shape, [
+    ...>   %{name: "authorized_count", type: :integer, required?: true},
+    ...>   %{name: "declined_count", type: :integer, required?: true}]}
+    iex> envelope = {:shape, [
+    ...>   %{name: "index", type: :integer, required?: true},
+    ...>   %{name: "status", type: :string, required?: true},
+    ...>   %{name: "donedata", type: summary, required?: false}]}
+    iex> Types.satisfies(declarations, summary, {:declared, "ChunkSummary"})
+    :covers
+    iex> Types.satisfies(declarations, envelope, {:declared, "ChunkSummary"})
+    {:missing, ["authorized_count", "declined_count"]}
+    iex> Types.to_string(summary)
+    "{authorized_count: integer, declined_count: integer}"
+
+The envelope's own members are `index`, `status` and `donedata`: the summary
+is one member down, and this package widens nothing to find it.
+
 ### An entry typed by a declaration
 
 An entry's `type`, and a `list` entry's `item_type`, may name a declaration

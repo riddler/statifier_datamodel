@@ -3,10 +3,13 @@ defmodule StatifierDatamodel.Types do
   Type expressions over a datamodel document, and ADR-0001 decision 8's read
   check.
 
-  A **type expression** is one of four things, and the record admits no
-  fifth:
+  A **type expression** is one of five things, and the record admits no
+  sixth:
 
     * `{:declared, name}` - a name the document's `types` key declares;
+    * `{:shape, members}` - an inline, unnamed shape a consumer builds, whose
+      members each carry `name`, `type` and `required?` (decision 8 and
+      decision 5's grammar, as amended 2026-09-06);
     * one of the nine types the set is closed at (`:string`, `:integer`,
       `:decimal`, `:boolean`, `:datetime`, `:duration`, `:date`, `:object`,
       `:list`);
@@ -17,7 +20,10 @@ defmodule StatifierDatamodel.Types do
   `parse/2` reads a document's spelling into one of those, in that order of
   precedence: the closed set first, so a document that declares a type
   called `"string"` does not shadow the scalar, and the declaration is still
-  reachable by every other read. `to_string/1` prints one back for a pane.
+  reachable by every other read. An inline shape has no document spelling
+  and `parse/2` never returns one: it enters this module only as an argument
+  a consumer hands the read check, exactly as `{:opaque, name}` does.
+  `to_string/1` prints one back for a pane.
 
   ## The read check
 
@@ -29,17 +35,31 @@ defmodule StatifierDatamodel.Types do
        not say is not thereby wrong.
     2. identity -> satisfied (`:identical`). The same declared name, the same
        type from the closed set, or the same opaque string.
-    3. `held` names a **record** and `expected` names a **shape** -> satisfied
-       when the record's fields cover the shape's required set (`:covers`):
-       for every field of the shape with `required?: true`, the record has a
-       field of the same `name`, itself `required?: true`, whose type
-       satisfies the shape field's type under this same check. Otherwise
-       `{:missing, names}`, in the shape's own field order - a field the
-       record does not have, a field the record declares optional, and a
-       field whose type does not satisfy are the same failure, and all are
-       named. A record field the shape does not name is ignored, and a shape
-       field the shape marks optional is not consulted at all.
+    3. `held` **covers** `expected` member-wise -> satisfied (`:covers`): for
+       every member of `expected` with `required?: true`, `held` carries a
+       member of the same `name`, itself `required?: true`, whose type
+       satisfies the expected member's type under this same check. Otherwise
+       `{:missing, names}`, in the expected side's own member order - a
+       member `held` does not have, one it declares optional, and one whose
+       type does not satisfy are the same failure, and all are named. A held
+       member the expectation does not name is ignored, and an expected
+       member marked optional is not consulted at all.
     4. otherwise -> `:not_assignable`.
+
+  Step 3's members are a declaration's fields or an inline shape's members,
+  by this table (decision 8 as amended 2026-09-06):
+
+  | `held` \\ `expected` | a declared record | a declared shape | an inline shape |
+  |---|---|---|---|
+  | **a declared record** | identity only | covers, field-wise | covers, member-wise |
+  | **a declared shape** | identity only | identity only | not assignable |
+  | **an inline shape** | not assignable | covers, member-wise | covers, member-wise |
+
+  The two refusals are the record's nominal rule, not an omission. An inline
+  shape never satisfies a declared **record**, because a record's identity is
+  nominal and an inline shape has no name to be that record by. A declared
+  **shape** held never covers anything but itself, because a shape is a
+  constraint and not a fact about what is there.
 
   Step 3 reads both sides' `required?`, on decision 8 as amended
   2026-09-06. A record that declares a field optional has not promised the
@@ -50,6 +70,12 @@ defmodule StatifierDatamodel.Types do
   it fails to. A consumer that needs to tell absent from present-but-optional
   reads the record's declaration for the named field; nothing this relation
   decides turns on the difference.
+
+  Step 2 is term equality everywhere except the inline arm, where it is
+  member-set-wise: two inline shapes carrying the same member names with the
+  same types and the same `required?` are the same type expression however
+  they are ordered. Order is kept because `{:missing, names}` is rendered in
+  it, and it is the one place identity is not Elixir's.
 
   That is the whole relation, and the shape of what it leaves out is the
   point. There is no record-into-record structural widening: identity is
@@ -76,11 +102,30 @@ defmodule StatifierDatamodel.Types do
   alias StatifierDatamodel.Declarations
 
   @typedoc """
-  A type expression: a declared name, one of the nine, an opaque string a
-  consumer carries, or unknown.
+  One member of an inline shape: its name, its type expression, and whether
+  the shape promises it.
+
+  The three contract-bearing keys of
+  `t:StatifierDatamodel.Declarations.field/0`, and only those: a member has
+  no `label`, because nothing renders a member's name but the member's name;
+  no `one_of`, because a completion hint is drawn from a document and an
+  inline shape is not written in one; and no `item_type`, because that is a
+  key of a declaration field. A member's `type` is never `nil` - a spelling
+  that resolved to nothing is `:unknown`.
+  """
+  @type member :: %{
+          name: String.t(),
+          type: t(),
+          required?: boolean()
+        }
+
+  @typedoc """
+  A type expression: a declared name, an inline unnamed shape, one of the
+  nine, an opaque string a consumer carries, or unknown.
   """
   @type t ::
           {:declared, String.t()}
+          | {:shape, [member()]}
           | StatifierDatamodel.Index.type()
           | {:opaque, String.t()}
           | :unknown
@@ -140,6 +185,11 @@ defmodule StatifierDatamodel.Types do
   non-empty string that names neither is opaque, and anything that is not a
   non-empty string is `:unknown`.
 
+  A document's `type` and `item_type` keys are strings, so there is no
+  spelling here for an inline shape and this function never returns one: a
+  map where a spelling was expected is `:unknown` like any other malformed
+  value.
+
       iex> alias StatifierDatamodel.{Declarations, Types}
       iex> declarations = Declarations.from_document(%{"types" => [
       ...>   %{"name" => "cards.card", "kind" => "record", "label" => "Card", "fields" => []}]})
@@ -150,6 +200,8 @@ defmodule StatifierDatamodel.Types do
       iex> Types.parse(declarations, "Settleable")
       {:opaque, "Settleable"}
       iex> Types.parse(declarations, nil)
+      :unknown
+      iex> Types.parse(declarations, %{"name" => "amount_cents", "type" => "integer"})
       :unknown
   """
   @spec parse(Declarations.t(), term()) :: t()
@@ -175,6 +227,10 @@ defmodule StatifierDatamodel.Types do
   identity: `:unknown` prints as `"unknown"`, which an opaque string is free
   to spell too, and `parse/2` is the only reader of a document's spelling.
 
+  An inline shape has no document spelling to print back, so it renders as
+  its members in their own order, each `name: type`, with a `?` after the
+  name of a member the shape does not promise.
+
       iex> alias StatifierDatamodel.Types
       iex> Types.to_string({:declared, "cards.credit_txn"})
       "cards.credit_txn"
@@ -184,11 +240,26 @@ defmodule StatifierDatamodel.Types do
       "Settleable"
       iex> Types.to_string(:unknown)
       "unknown"
+      iex> Types.to_string({:shape, [
+      ...>   %{name: "index", type: :integer, required?: true},
+      ...>   %{name: "donedata", type: {:declared, "ChunkSummary"}, required?: false}]})
+      "{index: integer, donedata?: ChunkSummary}"
   """
   @spec to_string(t()) :: String.t()
   def to_string({:declared, name}) when is_binary(name), do: name
   def to_string({:opaque, name}) when is_binary(name), do: name
+
+  def to_string({:shape, members}) when is_list(members) do
+    "{" <> Enum.map_join(members, ", ", &member_to_string/1) <> "}"
+  end
+
   def to_string(type) when is_atom(type), do: Atom.to_string(type)
+
+  @spec member_to_string(member()) :: String.t()
+  defp member_to_string(%{name: name, type: type} = member) do
+    promised = if Map.get(member, :required?) == true, do: "", else: "?"
+    name <> promised <> ": " <> to_string(type)
+  end
 
   @doc """
   Whether a value of type `held` may be read where `expected` is required.
@@ -262,6 +333,39 @@ defmodule StatifierDatamodel.Types do
       {:missing, ["authorized_at"]}
       iex> Types.satisfies(optional_authorized_at.(true), {:declared, "cards.credit_txn"}, {:declared, "Settleable"})
       :covers
+
+  An inline shape is read the same way, in both directions. A fan-out's
+  collected envelope is assembled by a compiler and declared nowhere, and its
+  `donedata` member still covers the summary the document does declare.
+
+      iex> alias StatifierDatamodel.{Declarations, Types}
+      iex> declarations = Declarations.from_document(%{"types" => [
+      ...>   %{"name" => "ChunkSummary", "kind" => "shape", "label" => "Chunk summary",
+      ...>     "fields" => [
+      ...>       %{"name" => "authorized_count", "type" => "integer", "required?" => true},
+      ...>       %{"name" => "declined_count", "type" => "integer", "required?" => true}]}]})
+      iex> summary = {:shape, [
+      ...>   %{name: "authorized_count", type: :integer, required?: true},
+      ...>   %{name: "declined_count", type: :integer, required?: true}]}
+      iex> envelope = {:shape, [
+      ...>   %{name: "index", type: :integer, required?: true},
+      ...>   %{name: "status", type: :string, required?: true},
+      ...>   %{name: "donedata", type: summary, required?: false}]}
+      iex> Types.satisfies(declarations, summary, {:declared, "ChunkSummary"})
+      :covers
+      iex> Types.satisfies(declarations, envelope, {:declared, "ChunkSummary"})
+      {:missing, ["authorized_count", "declined_count"]}
+
+  Identity for the arm is member-set-wise: the same members in another order
+  are the same type expression.
+
+      iex> alias StatifierDatamodel.Types
+      iex> Types.satisfies(%{},
+      ...>   {:shape, [%{name: "index", type: :integer, required?: true},
+      ...>             %{name: "status", type: :string, required?: true}]},
+      ...>   {:shape, [%{name: "status", type: :string, required?: true},
+      ...>             %{name: "index", type: :integer, required?: true}]})
+      :identical
   """
   @spec satisfies(Declarations.t(), t(), t()) :: reason()
   def satisfies(declarations, held, expected) do
@@ -278,7 +382,38 @@ defmodule StatifierDatamodel.Types do
   @spec decide(Declarations.t(), t(), t(), MapSet.t({String.t(), String.t()})) :: reason()
   defp decide(_declarations, :unknown, _expected, _seen), do: :unknown
   defp decide(_declarations, _held, :unknown, _seen), do: :unknown
+
+  # Two inline shapes: step 2 by member set rather than by term, then step 3
+  # member-wise. Decided ahead of term equality, since equal terms are the
+  # easy half of the same question.
+  defp decide(declarations, {:shape, held}, {:shape, expected}, seen) do
+    if canonical(held) == canonical(expected) do
+      :identical
+    else
+      member_wise(declarations, held, expected, seen)
+    end
+  end
+
   defp decide(_declarations, same, same, _seen), do: :identical
+
+  # An inline shape read where a declaration is expected: member-wise against
+  # a shape, and never assignable to a record, whose identity is nominal.
+  defp decide(declarations, {:shape, held}, {:declared, expected}, seen) do
+    case Map.fetch!(declarations, expected) do
+      %{kind: :shape, fields: fields} -> member_wise(declarations, held, fields, seen)
+      %{kind: :record} -> :not_assignable
+    end
+  end
+
+  # A declaration read where an inline shape is expected: a record covers it
+  # member-wise, and a held shape is a constraint rather than a fact about
+  # what is there, so it covers nothing but itself.
+  defp decide(declarations, {:declared, held}, {:shape, expected}, seen) do
+    case Map.fetch!(declarations, held) do
+      %{kind: :record, fields: fields} -> member_wise(declarations, fields, expected, seen)
+      %{kind: :shape} -> :not_assignable
+    end
+  end
 
   defp decide(declarations, {:declared, held}, {:declared, expected}, seen) do
     pair = {held, expected}
@@ -299,7 +434,8 @@ defmodule StatifierDatamodel.Types do
 
   defp decide(_declarations, _held, _expected, _seen), do: :not_assignable
 
-  # Step 3: a record read as a shape, and nothing else.
+  # Step 3: a record read as a shape, and nothing else - the only pairing of
+  # two declarations the table admits.
   @spec covers(
           Declarations.t(),
           Declarations.declaration(),
@@ -307,13 +443,28 @@ defmodule StatifierDatamodel.Types do
           MapSet.t({String.t(), String.t()})
         ) :: reason()
   defp covers(declarations, %{kind: :record, fields: held}, %{kind: :shape} = shape, seen) do
+    member_wise(declarations, held, shape.fields, seen)
+  end
+
+  defp covers(_declarations, _held, _expected, _seen), do: :not_assignable
+
+  # Step 3 itself, over member sets: a declaration's fields and an inline
+  # shape's members are the same thing here, which is what makes the arm one
+  # step rather than three.
+  @spec member_wise(
+          Declarations.t(),
+          [Declarations.field() | member()],
+          [Declarations.field() | member()],
+          MapSet.t({String.t(), String.t()})
+        ) :: reason()
+  defp member_wise(declarations, held, expected, seen) do
     by_name = Map.new(held, &{&1.name, &1})
 
     missing =
-      for field <- shape.fields,
-          field.required?,
-          not covered?(declarations, Map.get(by_name, field.name), field, seen),
-          do: field.name
+      for member <- expected,
+          member.required?,
+          not covered?(declarations, Map.get(by_name, member.name), member, seen),
+          do: member.name
 
     case missing do
       [] -> :covers
@@ -321,7 +472,19 @@ defmodule StatifierDatamodel.Types do
     end
   end
 
-  defp covers(_declarations, _held, _expected, _seen), do: :not_assignable
+  # Identity for the inline arm: member order is a rendering decision, so it
+  # is normalized away here and nowhere else. A member's type is canonicalized
+  # too, so a nested inline shape compares the same way its parent does.
+  @spec canonical([member()]) :: [member()]
+  defp canonical(members) do
+    members
+    |> Enum.map(fn member -> %{member | type: canonical_type(member.type)} end)
+    |> Enum.sort_by(& &1.name)
+  end
+
+  @spec canonical_type(t()) :: t()
+  defp canonical_type({:shape, members}), do: {:shape, canonical(members)}
+  defp canonical_type(type), do: type
 
   @spec covered?(
           Declarations.t(),
@@ -360,9 +523,36 @@ defmodule StatifierDatamodel.Types do
     end
   end
 
+  # An inline shape is normalized rather than looked up: a member without a
+  # usable name contributes nothing, a repeated name keeps its first
+  # occurrence - the rule `Declarations` uses for a repeated field name - and
+  # a member's own type is resolved by the same function, to any depth.
+  defp resolve(declarations, {:shape, members}) when is_list(members) do
+    {:shape,
+     members
+     |> Enum.flat_map(&member(declarations, &1))
+     |> Enum.uniq_by(& &1.name)}
+  end
+
   defp resolve(_declarations, {:opaque, name} = type) when is_binary(name), do: type
 
   defp resolve(_declarations, type) when type in @grammar_atoms, do: type
 
   defp resolve(_declarations, _outside_the_grammar), do: :unknown
+
+  # One member of an inline shape, normalized to its three keys. `required?`
+  # follows ADR-0002's optional-boolean convention: anything but `true` is
+  # not a promise.
+  @spec member(Declarations.t(), term()) :: [member()]
+  defp member(declarations, %{name: name} = raw) when is_binary(name) and name != "" do
+    [
+      %{
+        name: name,
+        type: resolve(declarations, Map.get(raw, :type)),
+        required?: Map.get(raw, :required?) == true
+      }
+    ]
+  end
+
+  defp member(_declarations, _unnamed), do: []
 end
