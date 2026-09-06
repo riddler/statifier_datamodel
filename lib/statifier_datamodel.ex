@@ -35,8 +35,9 @@ defmodule StatifierDatamodel do
 
   This module is the package's root and holds no functions. The document
   and its index are `StatifierDatamodel.Index` and
-  `StatifierDatamodel.Document`; the declared types, the read check,
-  compatibility and coverage land beside them as the record's remaining
-  decisions are built.
+  `StatifierDatamodel.Document`; the document's declared types are
+  `StatifierDatamodel.Declarations` and the type expressions over them, with
+  the read check, are `StatifierDatamodel.Types`. Compatibility and coverage
+  land beside them as the record's remaining decisions are built.
   """
 end

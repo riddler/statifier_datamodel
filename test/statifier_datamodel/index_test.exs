@@ -329,6 +329,28 @@ defmodule StatifierDatamodel.IndexTest do
       assert {:ok, %{item_type: nil}} = Index.fetch(index, "items")
     end
 
+    # sabotage: dropped `"date"` from the closed set, which is where it was
+    # before ADR-0001 decision 4 widened it - `card.expires_on` and `born_on`
+    # went back to `nil` and the `:date` assertions went red (verified).
+    test "date indexes like the other scalars, at any depth and as an item_type" do
+      assert Index.type(worked(), "card.expires_on") == :date
+
+      assert {:ok, %{type: :date, depth: 1, example: "2028-11-30"}} =
+               Index.fetch(worked(), "card.expires_on")
+
+      index =
+        Index.index(
+          document([
+            %{"path" => "born_on", "type" => "date"},
+            %{"path" => "settlement_dates", "type" => "list", "item_type" => "date"}
+          ])
+        )
+
+      assert Index.type(index, "born_on") == :date
+      assert {:ok, %{item_type: :date}} = Index.fetch(index, "settlement_dates")
+      assert Index.declared_paths(index) == MapSet.new(["born_on", "settlement_dates"])
+    end
+
     # sabotage: replaced `Map.put_new/3` with `Map.put/3` in `dedupe/1`, so
     # the last occurrence won - the label assertion went red (verified).
     test "a repeated path keeps its first occurrence, and appears once in order" do

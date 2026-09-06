@@ -100,22 +100,32 @@ defmodule StatifierDatamodel.Index do
 
   @typedoc """
   The closed type set. No floats anywhere: money is integer minor units,
-  and a `decimal`, a `datetime` and a `duration` are all carried as
-  strings.
+  and a `decimal`, a `datetime`, a `date` and a `duration` are all carried
+  as strings.
 
   A `duration` value - and the `example` beside it - is a duration string
   the expression language reads, `30s` or `1h30m`, the same string an
-  author types into a `:duration` field these paths feed. Which strings
-  parse is the expression language's to define; this module stores whatever
-  the document holds and parses none of it.
+  author types into a `:duration` field these paths feed. A `date` value is
+  an ISO-8601 calendar date, `2026-09-05`, which is the spelling the
+  expression language's own date literal reads. Which strings parse is the
+  expression language's to define; this module stores whatever the document
+  holds and parses none of it.
 
-  These are the eight the origin record closed the set at. ADR-0001
-  decision 4 widens it by `date`; admitting that spelling arrives with the
-  declared types, and until it does a `"date"` entry is an unknown type -
-  `nil` - and still contributes its path like any other entry.
+  These are the nine ADR-0001 decision 4 closes the set at: the eight the
+  origin record closed it at, plus `date`. `date` is a distinct type and
+  not a `datetime` because the expression language distinguishes them, and
+  a projection that collapsed the two would offer the wrong operators.
   """
   @type type ::
-          :string | :integer | :decimal | :boolean | :datetime | :duration | :object | :list
+          :string
+          | :integer
+          | :decimal
+          | :boolean
+          | :datetime
+          | :duration
+          | :date
+          | :object
+          | :list
 
   @typedoc "The record's three scopes, or `nil` for a scope map naming none of them."
   @type scope :: :global | :local | :event | nil
@@ -163,6 +173,7 @@ defmodule StatifierDatamodel.Index do
     "boolean" => :boolean,
     "datetime" => :datetime,
     "duration" => :duration,
+    "date" => :date,
     "object" => :object,
     "list" => :list
   }
