@@ -7,6 +7,10 @@ field (proposed 2026-09-06, `sd-7bx`; the amendment is the last section of
 this record).
 Note (2026-09-06, `sd-ght`): that amendment is accepted - its code is on
 `main` in `21ca866` and shipped in `v0.2.0`.
+Decisions 3, 5, 6, 7 and 9 amended - a field's `one_of` is a completion hint
+and never a break, a field going required -> optional is, and a scope
+entry's `type` may name a declaration (proposed 2026-09-06, `sd-wj1`; the
+amendment is the last section of this record).
 
 Origin: `sb-ADR-0006`, "The datamodel document is a typed, three-scope
 declaration, and the declared-path set is its projection", accepted in
@@ -99,6 +103,10 @@ and the optional `fields` (for `object`), `item_type` (for `list`), `example`,
 Every path is absolute and globally addressable; an event entry spells its
 own `event.` prefix.
 
+*[Amended 2026-09-06, with `sd-wj1`: an entry's `type` - and a `list`
+entry's `item_type` - may also name a declaration the `types` key declares.
+See the last section of this record.]*
+
 **4. Nine types: the origin's eight, plus `date`.** `string`, `integer`,
 `decimal`, `boolean`, `datetime`, `duration`, `date`, `object`, `list`. The
 set is **closed**, for the same reason as before: a closed set keeps every
@@ -145,6 +153,10 @@ is **nominal**: two records with identical fields are two records, and a
 record is never read as another record by structure. The one widening in the
 system is record-into-shape (decision 8).
 
+*[Amended 2026-09-06, with `sd-wj1`: a field's `one_of` is a completion hint
+and never a contract, exactly as it is on an entry. See the last section of
+this record.]*
+
 **6. The index, and admission as a total normalizer.** The index over a
 document is `StatifierBlocks.Predicates.Datamodel`'s, re-homed, with its
 normalization rules carried unchanged and one addition:
@@ -165,6 +177,11 @@ normalization rules carried unchanged and one addition:
   `type` names nothing declared and nothing in the closed set has type
   `nil`.
 
+*[Amended 2026-09-06, with `sd-wj1`: an entry's `type` and `item_type`
+resolve against the closed set first and then against `types`, and a
+spelling that names neither is `nil` exactly as before. See the last section
+of this record.]*
+
 **7. The declared-path set, by the same total function.** `sb-ADR-0006`
 decision 6, verbatim in effect: every entry contributes its own `path` at
 every nesting depth and nothing else does; an `object` contributes itself and
@@ -173,6 +190,11 @@ examples, types and `sensitive?` contribute nothing. **`types` contributes
 nothing.** A declared name is not a path; a declaration's fields are not
 paths. The empty-entry document projects to `MapSet.new()`, which is a host
 claim, and `nil` remains *no document supplied*.
+
+*[Amended 2026-09-06, with `sd-wj1`: an entry whose `type` names a
+declaration contributes its own path and, beneath it, the declaration's
+fields, exactly as an inlined `object` contributes its `fields`. `types`
+still contributes no path of its own. See the last section of this record.]*
 
 **8. The read check.** Given the declarations, a type `held` at a path and a
 type `expected` by a read, `satisfies?/3` is decided in order:
@@ -219,6 +241,13 @@ one is no change and shrinking one is a group changed, which is breaking on
 the same reasoning as a type change. The list is empty when the redefinition
 is compatible; a name that is not declared on either side is an `:error`,
 never an empty list.
+
+*[Amended 2026-09-06, with `sd-wj1`: the eight-row table above, and the
+sentence beneath it about a shrunk value group, are superseded by the
+six-row table in the last section of this record - the two `one_of` rows are
+gone, and `a field required -> optional` is breaking. The eight rows are
+kept here as the text that was accepted; the last section is what `breaks/2`
+decides.]*
 
 **10. Coverage of a map against a shape.** `missing/3`, given the
 declarations, a shape name and a map, returns `{:ok, names}` - the `name` of
@@ -542,11 +571,19 @@ or needs to know that a finding was produced.
   seeded by the entry block and by write signatures, not by the document's
   entries, so nothing needs an entry typed by a record yet. Admitting it is
   a small additive amendment when something does.
+
+*[Answered 2026-09-06, with `sd-wj1`, by the amendment at the end of this
+record: something does, so an entry's `type` and a `list` entry's
+`item_type` may name a declaration. This question is closed.]*
 - **The `one_of` value group on a declaration field.** Decision 9 reads a
   field's `one_of` as a value group that narrows the field, so adding one is
   breaking. If the walk that rules on this record prefers `one_of` to stay a
   pure completion hint on declaration fields as it is on entries, the two
   group rows drop out of the table and nothing else changes.
+
+*[Answered 2026-09-06, with `sd-wj1`, by the amendment at the end of this
+record: the walk prefers the hint, and the two group rows are gone. This
+question is closed, and the last of the three carried here with it.]*
 - **Whether `required?` on a *record* field means anything to the read
   check.** Decision 8 reads the shape side's `required?` and ignores the
   record side's: a record's optional field still covers a shape's required
@@ -699,3 +736,171 @@ accepted in a separate change once that code is on `main`.
 *[Note 2026-09-06, with `sd-ght`: that separate change is this one. The code
 is on `main` in `21ca866`, `v0.2.0` (tag at `2c40403`) shipped it, and the
 status line at the head of this section now reads accepted.]*
+
+---
+
+## Amendment (2026-09-06): a field's `one_of` is a completion hint, a field going required -> optional is a break, and a scope entry's `type` may name a declaration
+
+**Status: proposed (2026-09-06), on the operator's campaign-034 ruling
+RQ-034-4.** Three clauses, two of which move in opposite directions: a
+redefinition may now do something it could not (arm a), a document may now
+declare something it could not (arm b), and one redefinition that used to be
+compatible is now breaking (the row arm a's pass forced). Between them they
+are why the release carrying this is a MINOR under `0.x`. No text above this
+line is edited by this section, and the amendment takes effect when `sd-wj1`
+lands the code and the status flips.
+
+### Context
+
+Two of the three questions "Open questions carried" left standing are
+answered here, and the third clause is a row decision 9's table got wrong
+once decision 8 was amended.
+
+**The hint.** `one_of` on an *entry* has always been a completion hint: it
+lists the values a host expects, an editor draws them as choices, and a value
+control fed from it still admits anything the author types (decision 11 and
+`Document.declared_values/1` both say so in those words). Decision 9 read the
+same key on a *declaration field* as a value group that narrows the field, so
+adding one was breaking and shrinking one was breaking too. One key meaning
+two different things in one document is the defect: an author who narrows a
+suggestion list gets a compatibility break for a suggestion, and a consumer
+reading a field's `one_of` cannot tell from the key whether it is a promise.
+
+**The row.** Decision 9's table calls `a field required -> optional`
+compatible, and it was, under the reading of decision 8 step 3 that ignored
+the record side's `required?`. The `sd-7bx` amendment ended that reading:
+step 3 now asks the record to promise the value, so a record field that goes
+required -> optional stops covering a shape field that requires it, and a
+read that held under the old declaration does not hold under the new. That is
+precisely what decision 9 says `breaks/2` lists. The table row was left
+alone when step 3 moved, and this section moves it.
+
+**The declaration-typed entry.** The first carried question expected an
+uptake case before admitting an entry typed by a record, on the ground that
+the typed environment is seeded by the entry block and by write signatures
+rather than by the document. The case arrived: a host that already declares
+`cards.credit_txn` under `types` has to restate every one of its fields as an
+inlined `object` entry to get the paths into the index, and the two
+statements then drift. The document already has the nominal name; the entry
+should be able to use it.
+
+### Decision
+
+**(a) A field's `one_of` is a completion hint, and never a break.** Adding
+one, removing one, reordering one, widening one and shrinking one are all
+compatible. The key means on a declaration field exactly what it means on an
+entry, and nothing in this package reads it as a constraint.
+
+**The row: a field going required -> optional is breaking.** A record field
+that stops being required stops promising its value, and decision 8 step 3 as
+amended 2026-09-06 stops reading it as covering a shape field that requires
+it. The reason a redefinition reports for it is `{:made_optional, name}`.
+
+**Decision 9's table is these six rows:**
+
+| Change | Verdict | Break |
+|---|---|---|
+| a field removed | breaking | `{:field_removed, name}` |
+| a field's `type` changed | breaking | `{:type_changed, name}` |
+| a field optional -> required | breaking | `{:made_required, name}` |
+| a required field added | breaking | `{:required_added, name}` |
+| a field required -> optional | breaking | `{:made_optional, name}` |
+| an optional field added | compatible | - |
+
+The `break()` vocabulary stays at five members and swaps one: `:group_added`
+is gone, because no `one_of` change is a break, and `:made_optional` takes
+its place. Everything decision 9 says around the table stands: `breaks/2`
+lists every way the new declaration narrows the old, deterministically
+ordered by field name and then by the order this table lists the reasons in;
+the list is empty when the redefinition takes nothing away; a name declared
+on neither side is `:error`; and `item_type`, `label`, `note` and `kind` are
+still not compared.
+
+**(b) An entry's `type`, and a `list` entry's `item_type`, may name a
+declaration.** The reference is **nominal**, on decision 5's identity rule:
+the entry's type is the declared name, not a copy of the declaration's
+fields.
+
+1. **Resolution order is the closed set first, then `types`.** A document
+   that declares a type called `"string"` does not shadow the scalar - the
+   same precedence `Types.parse/2` already uses for a declaration field. A
+   spelling that names neither is `nil`: unknown, exactly as decision 6
+   already says, and not a failed admission.
+2. **A declaration-typed entry expands beneath its own path.** It contributes
+   its own path, and then one path per field of the declaration, spelled
+   `<entry path>.<field name>`, at the entry's depth plus one, in the
+   declaration's field order. A field that itself names a declaration expands
+   again, recursively. This is exactly what an inlined `object` entry does
+   with its `fields`, which is the point: a host that spells the object out
+   and a host that names the declaration get the same paths.
+3. **An expanded path carries what the field carries and nothing else.** Its
+   `type`, `item_type`, `label` and `one_of` are the field's; its `name` is
+   the field's `name`; its `scope` is the entry's. `example` and `note` are
+   absent and `sensitive?` is `false`: a declaration field has no such keys,
+   and this record does not invent them. A host that needs them writes the
+   entry out inline, which stays admissible.
+4. **A cycle discharges rather than recurring.** Declarations may reference
+   each other and a host can write a cycle; a declaration already being
+   expanded on the same chain of paths is not expanded again, so `index/1`
+   stays total over every document. That is the discipline decision 8's check
+   already uses for a cyclic read.
+5. **A `list` entry still contributes its own path alone.** Decision 7's list
+   rule is unchanged: `item_type` names an element type, no record decides an
+   index syntax, and there is no element path to expand. A declared
+   `item_type` is carried on the entry and expands nothing.
+6. **An entry may do both.** An entry that names a declaration *and* carries
+   `fields` contributes both sets, with the first occurrence of a repeated
+   path winning, which is the rule the index already uses everywhere.
+7. **`types` still contributes no path of its own.** Decision 7's sentence
+   stands as written: a declared name is not a path, and a declaration's
+   fields are not paths. They become paths only beneath an entry that names
+   the declaration, and it is the entry that contributes them.
+
+### Consequences
+
+- **`breaks/2`'s vocabulary swaps a member.** A consumer matching
+  `{:group_added, _}` stops matching anything and has nothing to replace it
+  with, because the change it named is no longer a break; a consumer that
+  enumerates the vocabulary handles `{:made_optional, _}`. A redefinition
+  that only edits a `one_of` now reports `[]`.
+- **A redefinition that relaxes a field now reports a break.** A declaration
+  that marks a field `required?: false` where it used to be `true` answers
+  `{:made_optional, name}`. That is the redefinition table agreeing with the
+  read check rather than contradicting it, and it is what the `sd-7bx`
+  amendment's own Consequences section pointed at when it said the
+  required -> optional row "is the one that now also narrows what the
+  declaration can cover".
+- **Arm (b) is additive to every document already written.** An entry whose
+  `type` is one of the nine indexes exactly as before, and a document without
+  `types` is untouched. What changes is that a spelling outside the closed
+  set, which used to be `nil` unconditionally, is now `{:declared, name}`
+  when `types` declares it - and still `nil` when it does not.
+- **The index reads `types` as well as `scopes`.** Resolving an entry's type
+  needs the declarations, so `index/1` builds them and `t:t/0` carries a
+  `declarations` key, which is the key the typespec appendix above already
+  names. `Index.type/2` may now answer `{:declared, name}` as well as one of
+  the nine.
+- **Decision 11 inherits arm (b) rather than being amended by it.** An
+  expanded path projects by its own field's type, so a scalar field beneath a
+  declaration-typed entry is present in `path_types/1` with its kind, a field
+  carrying a drawable `one_of` is present with its values, and the
+  declaration-typed entry itself is absent from the map exactly as an
+  `object` is - it is an entry whose type is not one of the six kinds, which
+  is the fall-through row decision 11 already has.
+- **Decisions 8 and 10 are untouched.** The read check compares a field's
+  `type` and does not read `one_of` at all, and coverage is a check of a map
+  against a shape. Neither moves.
+- **A MINOR under `0.x`, and the change is named in its changelog.** Arm (a)
+  and arm (b) alone would be a patch and a minor addition; the swapped break
+  member and the new break on a relaxed field are what make it a MINOR, and
+  the fix in a document is to leave the field `required?: true` where the
+  record does promise the value.
+- **No question is left carried.** All three of "Open questions carried, not
+  resolved here" are now answered: two by this section and one by the
+  `sd-7bx` amendment above it.
+
+Implemented by `sd-wj1` (`Compatibility.breaks/2`'s six rows, and
+`StatifierDatamodel.Index` resolving and expanding a declaration-typed entry,
+with the worked shape's `cards.credit_txn` as the case). This section merges
+at proposed and flips to accepted in a separate change once that code is on
+`main`.
