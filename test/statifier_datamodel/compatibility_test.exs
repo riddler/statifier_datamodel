@@ -3,11 +3,12 @@ defmodule StatifierDatamodel.CompatibilityTest do
   ADR-0001 decision 9 - what a redefined declaration takes away.
 
   The record's six rows - decision 9 as amended 2026-09-06 - are pinned
-  twice: once row by row, and once as the whole table in a single
-  comparison, so a change to the verdict of any one row goes red in a test
-  that names it. The two rows the amendment removed are pinned too, as the
-  hint they now are. The declarations are the record's worked shape,
-  redefined the way a host redefines one.
+  three times: once row by row, once as the whole table in a single
+  comparison, and once by the kind each row reports, so a change to the
+  verdict of any one row, or to the atom it names, goes red in a test that
+  names it. The two rows the amendment removed are pinned too, as the hint
+  they now are. The declarations are the record's worked shape, redefined
+  the way a host redefines one.
   """
 
   use ExUnit.Case, async: true
@@ -248,6 +249,89 @@ defmodule StatifierDatamodel.CompatibilityTest do
       # A raw document map handed in directly is read as *not declared on
       # that side* rather than raised on.
       assert Compatibility.breaks(half_written, half_written) == :error
+    end
+  end
+
+  describe "the kind each row reports" do
+    # The row -> kind mapping, pinned as data: the atom a break names first
+    # is the row it came from, which is what an embedder matches on instead
+    # of comparing the two declarations again.
+    #
+    # sabotage: swapped the atoms `changes/2` emits for `made_required` and
+    # `made_optional`, so each row reported the other's kind - both of those
+    # rows went red and named the kind they got (verified).
+    test "each breaking row reports its own kind" do
+      optional = %{"name" => "f", "type" => "string"}
+      required = %{"name" => "f", "type" => "string", "required?" => true}
+      retyped = %{"name" => "f", "type" => "integer"}
+      other = %{"name" => "g", "type" => "string"}
+      other_required = %{"name" => "g", "type" => "string", "required?" => true}
+
+      rows = [
+        {"a field removed", [optional, other], [optional], {:field_removed, "g"}},
+        {"a field's type changed", [optional], [retyped], {:type_changed, "f"}},
+        {"a field optional -> required", [optional], [required], {:made_required, "f"}},
+        {"a required field added", [optional], [optional, other_required],
+         {:required_added, "g"}},
+        {"a field required -> optional", [required], [optional], {:made_optional, "f"}}
+      ]
+
+      for {row, was, now, break} <- rows do
+        assert {row, redefined(was, now)} == {row, [break]}
+      end
+    end
+
+    # The vocabulary is closed at five: the table's breaking rows and the
+    # `break()` type name the same atoms, so a `case` over all five is
+    # exhaustive and a sixth would be a new row in the record.
+    #
+    # sabotage: had `changes/2` emit a sixth kind, `{:type_narrowed, name}`,
+    # beside `:type_changed` on the retyped row - the observed set gained a
+    # member the record does not name and this assertion went red, which is
+    # the drift between the closed vocabulary and the record's table it
+    # exists to catch (verified).
+    test "the kinds observed across the table are exactly the five the record names" do
+      optional = %{"name" => "f", "type" => "string"}
+      required = %{"name" => "f", "type" => "string", "required?" => true}
+      retyped = %{"name" => "f", "type" => "integer"}
+      other = %{"name" => "g", "type" => "string"}
+      other_required = %{"name" => "g", "type" => "string", "required?" => true}
+
+      pairs = [
+        {[optional, other], [optional]},
+        {[optional], [retyped]},
+        {[optional], [required]},
+        {[optional], [optional, other_required]},
+        {[required], [optional]},
+        {[optional], [optional, other]}
+      ]
+
+      observed =
+        pairs
+        |> Enum.flat_map(fn {was, now} -> redefined(was, now) end)
+        |> Enum.map(&elem(&1, 0))
+        |> Enum.uniq()
+        |> Enum.sort()
+
+      assert observed ==
+               Enum.sort([
+                 :field_removed,
+                 :type_changed,
+                 :made_required,
+                 :required_added,
+                 :made_optional
+               ])
+    end
+
+    # sabotage: reversed the module's `@reasons` list, which is the tie-break
+    # between two breaks on one field name - this assertion went red with the
+    # pair in the other order, which is what says the order is the record's
+    # table order and not an accident of how the two are appended (verified).
+    test "one field carrying two rows names both kinds, in the table's order" do
+      was = [%{"name" => "f", "type" => "string", "required?" => true}]
+      now = [%{"name" => "f", "type" => "integer"}]
+
+      assert redefined(was, now) == [{:type_changed, "f"}, {:made_optional, "f"}]
     end
   end
 end

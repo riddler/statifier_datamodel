@@ -12,21 +12,46 @@ defmodule StatifierDatamodel.Compatibility do
 
   ## The six rows
 
-  The record's table, kept literally. Five ways a redefinition narrows:
+  The record's table, kept literally, with the kind each row reports. Five
+  ways a redefinition narrows:
 
-  | Change | Verdict | Break |
-  |---|---|---|
-  | a field removed | breaking | `{:field_removed, name}` |
-  | a field's `type` changed | breaking | `{:type_changed, name}` |
-  | a field optional -> required | breaking | `{:made_required, name}` |
-  | a required field added | breaking | `{:required_added, name}` |
-  | a field required -> optional | breaking | `{:made_optional, name}` |
+  | Change | Verdict | Kind | Break |
+  |---|---|---|---|
+  | a field removed | breaking | `:field_removed` | `{:field_removed, name}` |
+  | a field's `type` changed | breaking | `:type_changed` | `{:type_changed, name}` |
+  | a field optional -> required | breaking | `:made_required` | `{:made_required, name}` |
+  | a required field added | breaking | `:required_added` | `{:required_added, name}` |
+  | a field required -> optional | breaking | `:made_optional` | `{:made_optional, name}` |
 
   and one way it does not:
 
-  | Change | Verdict |
-  |---|---|
-  | an optional field added | compatible |
+  | Change | Verdict | Kind |
+  |---|---|---|
+  | an optional field added | compatible | none - nothing is reported |
+
+  ## The kind is the first element
+
+  A break's first element **is** the row it came from: one atom per breaking
+  row of the table above, and the same atom every time that row is the reason.
+  An embedder wording a warning matches on it and never re-derives from the
+  two declarations why the row broke.
+
+      case Compatibility.breaks(old, new) do
+        :error -> "nothing was redefined"
+        breaks -> Enum.map(breaks, fn
+          {:field_removed, name} -> "\#{name} is gone"
+          {:type_changed, name} -> "\#{name} holds a different type"
+          {:made_required, name} -> "\#{name} must now be there"
+          {:required_added, name} -> "\#{name} was added and must be there"
+          {:made_optional, name} -> "\#{name} is no longer promised"
+        end)
+      end
+
+  The vocabulary is closed at those five and is the `break()` type: a `case`
+  that names all five is exhaustive over every break this module reports, and
+  a sixth kind would be a new row in the record's table, not a new spelling of
+  an old one. The compatible row reports nothing at all, so there is no kind
+  for *an optional field added* to match on - an empty list is the answer.
 
   The asymmetry is the whole point: this answers *may a reader keep reading*,
   not *did anything change*. A declaration that gains an optional field takes
@@ -74,8 +99,14 @@ defmodule StatifierDatamodel.Compatibility do
   alias StatifierDatamodel.Declarations
 
   @typedoc """
-  One way a redefinition narrows what it replaces, naming the field it
-  happened to.
+  One way a redefinition narrows what it replaces: the kind, which names the
+  row of the record's table it came from, and the field it happened to.
+
+  The kinds, in the table's order: `:field_removed` for a field removed,
+  `:type_changed` for a field's `type` changed, `:made_required` for a field
+  optional -> required, `:required_added` for a required field added, and
+  `:made_optional` for a field required -> optional. The vocabulary is closed
+  at those five.
   """
   @type break ::
           {:field_removed, String.t()}
@@ -90,6 +121,12 @@ defmodule StatifierDatamodel.Compatibility do
 
   @doc """
   Every way `new` narrows `old`, ordered by field name then by reason.
+
+  Each break names its kind first - `:field_removed`, `:type_changed`,
+  `:made_required`, `:required_added` or `:made_optional`, one per breaking
+  row of the record's table - and the field second, so a caller words a
+  warning by matching the kind rather than by comparing the two declarations
+  again.
 
   `nil` on a side means the name is not declared there: a declaration that
   went away removes all of its fields, and one that appeared adds all of its
