@@ -5,6 +5,8 @@ not flip its own status.
 Decision 8 amended - an optional record field does not cover a required shape
 field (proposed 2026-09-06, `sd-7bx`; the amendment is the last section of
 this record).
+Note (2026-09-06, `sd-ght`): that amendment is accepted - its code is on
+`main` in `21ca866` and shipped in `v0.2.0`.
 
 Origin: `sb-ADR-0006`, "The datamodel document is a typed, three-scope
 declaration, and the declared-path set is its projection", accepted in
@@ -614,11 +616,15 @@ the record reads as each line below says.
 
 ## Amendment (2026-09-06): decision 8, an optional record field does not cover a required shape field
 
-**Status: proposed (2026-09-06), on the operator's campaign-033 ruling
+**Status: accepted (2026-09-06), on the operator's campaign-033 ruling
 RQ-033-9.** Narrowing, not additive: it is a breaking change to the read
 check, and it is why the release carrying it is a MINOR under `0.x`. No text
 above this line is edited by this section, and the amendment takes effect
 when `sd-7zl` lands the code and the status flips.
+
+*[Note 2026-09-06, with `sd-ght`: it has. `sd-7zl` landed the code on `main`
+in `21ca866` and `v0.2.0` shipped it, so the status line above is accepted
+and this section is in effect.]*
 
 ### Context
 
@@ -689,3 +695,7 @@ Implemented by `sd-7zl` (`Types.satisfies/3` and `satisfies?/3` honour the
 record field's `required?`, with the worked shape's `cards.credit_txn` and
 `Settleable` as the case). This section merges at proposed and flips to
 accepted in a separate change once that code is on `main`.
+
+*[Note 2026-09-06, with `sd-ght`: that separate change is this one. The code
+is on `main` in `21ca866`, `v0.2.0` (tag at `2c40403`) shipped it, and the
+status line at the head of this section now reads accepted.]*
