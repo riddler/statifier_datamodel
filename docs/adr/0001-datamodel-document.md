@@ -1222,3 +1222,149 @@ This section merges at proposed and flips to accepted in a separate change
 *[Note 2026-09-06, with `sd-n51`: that separate change is this one. The code
 is on `main` in `3116a72`, and the status line at the head of this section
 now reads accepted.]*
+
+---
+
+## Note (2026-09-07): decision 8, a path declared as bare `object` does not cover a read of a declared record or shape
+
+A dated note rather than an amendment, in the convention this record's own
+flip note uses - see `## Note (2026-09-06): accepted, and the eight readings
+the flip records` above, which carries no status line either. No text above
+this line is edited, no clause of decision 8 changes, and no code changes
+with it. What follows is how decision 8 already reads for one pairing its
+four steps decide but its prose never spells out, raised by the first
+embedder's typed environment.
+
+### The reading
+
+**A path whose declared type is the bare `object` type is nominal for the
+read check.** `object` is one of decision 4's nine types, so a `held` value
+of `object` meets an `expected` type only through step 2, by identity: it
+satisfies `object`, and nothing else. In particular it does **not** cover a
+read that expects a declared record or a declared shape, and it does not
+cover an inline shape either. A leaf expecting the record `Settlement` where
+the document declares the path as bare `object` is `:not_assignable` under
+step 4, and a leaf expecting a shape there is the same.
+
+The reasoning is the record's own. Decision 8's relation is nominal
+throughout, and it is nominal for scalars in the strictest way there is -
+step 2 admits "the same scalar" and step 3 is the single widening the
+record allows, from a record to a shape it covers. `object` sits on the
+scalar side of that line: it is a member of the closed nine, not a
+declaration, and decision 5's declarations are the only names in the system
+that carry members. A record promises members by name and type; bare
+`object` promises none, which is exactly what decision 3 and decision 7 say
+it is - a type whose `fields` contribute paths and whose *type* contributes
+no member contract at all. Nothing in the document says what is at an
+`object` path, so there is nothing for step 3 to compare a shape's required
+set against.
+
+Reading it the other way would cost two things this record has already
+decided. It would make every `object`-declared path a silent universal
+type, satisfying every record and every shape a consumer could expect, so a
+read check over such a path would report satisfied for a document that has
+promised nothing, which is the failure the 2026-09-06 amendment closed on
+the record side of `required?` ("The check would then report satisfied for a
+document that has not promised the value"). And it would defeat the
+member-wise step the inline-shape amendment added: that step exists so that
+an unnamed structural value can be compared *by its members*, and a type
+carrying no members that nevertheless covered everything would make the
+member comparison optional rather than the only route.
+
+The permissive case the record does provide is `:unknown`, step 1, which is
+what an undeclared path already produces. A host that wants a path to be
+permissive leaves it undeclared or lets it normalize to unknown; declaring
+it `object` is a positive claim about the type, and a positive claim that
+promises no members is refused against a read that needs them.
+
+### The friction case, stated plainly
+
+This is the first thing a host hits, and it is real friction, not a corner.
+A host that declares a path as `object` and writes a record there - then
+reads that record downstream - gets `:not_assignable` from a document that
+looks to its author like it says the right thing. The fix is in the
+**document, not in the check**: declare the record under the `types` key and
+give the entry that type (the 2026-09-06 `sd-wj1` amendment lets an entry's
+`type` name a declaration for exactly this), or, where the read only needs
+some members, declare a shape and let the record cover it under step 3. The
+cost is one declaration per path that is read structurally; the benefit is
+that the read check keeps meaning what it says everywhere else. That
+trade is decision 8's, already paid once in the "nominal identity rule is a
+real cost a host will feel" consequence above, and this note only records
+that bare `object` is on the same side of it.
+
+### statifier_blocks follows this reading
+
+statifier_blocks' typed environment seeds path types from this package's
+index, so its read check is this one. Bead `sb-m9eq` adds a dated note to
+its ADR-0011 recording the same reading from the environment's side - a
+bare `object` seeded at a path does not satisfy a block's declared record or
+shape requirement - and citing this record's decision 8 by number. This
+record owns the relation; that one records the consequence for the
+environment walk. Neither cites the other by line.
+
+### Worked example
+
+Card processing. A host's document declares the settlement path as an object
+with fields, and separately declares the record a leaf writes there:
+
+```json
+{
+  "version": 1,
+  "scopes": [
+    {
+      "scope": "global",
+      "label": "Global",
+      "description": "",
+      "entries": [
+        {
+          "name": "settlement",
+          "path": "cards.settlement",
+          "type": "object",
+          "label": "Settlement",
+          "fields": [
+            {"name": "settled_at", "path": "cards.settlement.settled_at",
+             "type": "datetime", "label": "Settled at"}
+          ]
+        }
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "Settlement",
+      "kind": "record",
+      "label": "Settlement",
+      "fields": [
+        {"name": "settled_at", "type": "datetime", "required?": true}
+      ]
+    }
+  ]
+}
+```
+
+A leaf reading `cards.settlement` and expecting the record `Settlement`:
+
+| `held` | `expected` | Answer |
+|---|---|---|
+| `:object` (the entry's declared type) | `{:declared, "Settlement"}` | `:not_assignable` - step 4 |
+| `:object` | `{:shape, [...]}` | `:not_assignable` - step 4 |
+| `:object` | `:object` | `:identical` - step 2 |
+| `{:declared, "Settlement"}` | `{:declared, "Settlement"}` | `:identical` - step 2 |
+
+The document declares the record and the entry side by side and they still
+do not meet: a declared name is not a path (decision 7), and the entry's
+`type` is the string `"object"`, so the index types the path `:object` and
+the declaration is never consulted for that path. The host's fix is one
+key - the entry's `type` becomes `"Settlement"` - after which the first row
+is `:identical` and every read of a shape the record covers is `:covers`.
+
+### Implementing bead
+
+This note is the decision, and `sd-y3l` is the whole of it: **no code change
+in statifier_datamodel**. Today's `StatifierDatamodel.Types` already decides
+it this way - `decide/4`'s clauses pair a `{:declared, _}` or `{:shape, _}`
+with another `{:declared, _}` or `{:shape, _}` and nothing else, so a held
+`:object` against an expected `{:declared, name}` reaches the final
+catch-all clause and returns `:not_assignable`. This note records the
+reading and its reason; it does not change an answer the code gives.
