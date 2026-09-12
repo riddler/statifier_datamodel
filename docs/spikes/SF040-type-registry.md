@@ -347,10 +347,47 @@ relation, not a new one.
 
 ## Reviewer qualifications
 
-A cold review pass ran on this document at the campaign's review gate; its
-qualifications, if any, are recorded here.
+One cold review pass ran on this document at the campaign's review gate.
+**Pass 1 verdict: QUALIFIED, 5 findings, 0 blocking.** A spike findings
+document is merged with its qualifications recorded rather than cured
+(campaign SF040 consent, clause 6), so the five are written out here and the
+body above is left as the reviewer read it.
 
-- Pass 1: see the verdict recorded on bead `sd-2mq`.
+1. **Ask 5 is not an ask.** It names no owning repository and no work, so a
+   conductor filing the asks has nowhere to put it. It is evidence for the
+   open question about what this package declares for a collected answer set,
+   and it routes to that question by name rather than to a tracker. Asks 1
+   through 4 are well formed, and none of them is a decision this document
+   took on its own - ask 2's `satisfies_at/4` is proposed, not added.
+2. **"No adapter is needed" is exact for a *declared* path, and the doc does
+   not connect that to ask 2.** `Index.type/2` is spec'd `entry_type() | nil`
+   and `satisfies/3` is spec'd over `t()`, so an undeclared path's `nil` is
+   outside the spec even though the resolver's catch-all maps it to
+   `:unknown` at run time. The run passes `:unknown` explicitly rather than
+   `nil`, and ask 2 is exactly the request to close that gap; the two
+   statements are consistent and the doc leaves the link implicit.
+3. **Sections 3 and 5 quote abridged excerpts without saying so.** Section 3
+   shows four of nine index rows and drops the `(satisfies?=...)` suffix;
+   section 5 shows six of nine coverage rows and moves the record `:error`
+   row into prose. Every line shown reproduces exactly, and Appendix C - the
+   one labelled verbatim - matches a fresh run byte for byte, as do
+   Appendices A and B against their scratch sources.
+4. **Section 4's filter, `default` and dynamic-path findings are about a
+   Liquid slot richer than the one the parallel fixture work shipped.** That
+   fixture's slots, as they stood when this was reviewed, use two plain
+   substitutions with no filter, loop or assignment, and the campaign plan
+   has the skeleton use a two-line substitution stand-in rather than Liquid
+   at all. Appendix C's header says the slot is a Liquid-shaped stand-in
+   written for the spike; read section 4 as what a Liquid slot would need,
+   not as something observed on the skeleton.
+5. **One cite in section 4 is incomplete.** `required?` is read on the held
+   side by the `covered?/4` clause the doc names, and on the expected side by
+   the `member.required?` filter in `member_wise/4`. The claim that the check
+   consults it on both sides is correct; only the cite is half of it.
+
+The reviewer checked every other assertion this document makes about the
+package against the code on the branch and found them to hold, and
+re-executed the scratch run rather than reading the quotes.
 
 ## Appendix A - the element context as a datamodel document
 
