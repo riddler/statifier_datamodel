@@ -21,3 +21,11 @@ records sits on the record's own header or under a `## Amendment`, because an
 amendment changes what the record decides and a note does not: a note records
 where something already decided renders, or what a sentence already accepted
 was about.
+
+A note's heading names the decision it is about and never a bead id; the
+first paragraph may name the bead and the ruling the note was recorded for.
+The rule that keeps process artifacts out of shipped prose (`CLAUDE.md`, the
+statifier-ex ADR-0018 line) exempts dated correction and note blocks, and
+this is where that exemption lands in these records: the id belongs in the
+body, where it says why a paragraph exists, not in the heading, which is what
+a reader scans and what another record cites.

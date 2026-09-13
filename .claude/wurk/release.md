@@ -139,13 +139,23 @@ Whether the release is major, minor or patch is not decided here - the version
 is explicit input to the skill. The fragments' headings are evidence for that
 judgement, not a rule that computes it.
 
-## The README install pin needs no step here
+## The README install pin: write the `.0` form
 
-`release.readme_pin` is `true`, and the skill's own step covers this repo's
-pin without help: `README.md` carries a `{:statifier_datamodel, "~> X.Y"}` pin
-in its `def deps` snippet - exactly the major/minor form with the patch
-component dropped that the skill bumps. It is named here only so that the
-carriers a release moves are all listed in one place.
+`release.readme_pin` is `true`. `README.md` carries a
+`{:statifier_datamodel, "~> X.Y.0"}` pin in its `def deps` snippet, and a
+release moves it. It is a step here rather than a note, because the form the
+pin takes is this repo's own and not the skill's default: the skill's own pin
+step writes the major/minor form with the patch component dropped, and that
+is **not** what this README should end up with.
+
+The pin is written to the exact minor that the release cuts, patch component
+`0` included - `~> 0.5.0` for a 0.5.0 release, not `~> 0.5`. That is the form
+the pre-1.0 banner at the top of the same README recommends to consumers
+("pinning to an exact minor - `~> X.Y.0` - is the recommended way to consume
+the package until 1.0"), and a snippet that shows a looser pin than the
+banner asks for contradicts the banner two dozen lines above it. So a prep
+that finds the skill has written `~> X.Y` finishes the job by hand and
+restores the `.0`.
 
 The pin's current value is not written down here, for the same reason no
 current version is. Read it and check it against the version file instead:
@@ -155,10 +165,11 @@ grep 'statifier_datamodel, "~>' README.md   # the pin
 grep '@version "' mix.exs                   # the version it should track
 ```
 
-They should agree on major and minor. If they ever do not, the pin edit
-repairs the drift in one move rather than stepping one release at a time: it
-goes straight to the current major/minor, and that is the recipe working, not
-a mistake to correct back.
+They should agree on major and minor, and the pin's patch component should be
+`0`. If they ever do not agree, the pin edit repairs the drift in one move
+rather than stepping one release at a time: it goes straight to the current
+major/minor with a `.0` patch, and that is the recipe working, not a mistake
+to correct back.
 
 ## No second version carrier
 
