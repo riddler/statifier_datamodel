@@ -163,6 +163,42 @@ promise the value.
     iex> Types.satisfies(loose, {:declared, "cards.credit_txn"}, {:declared, "Settleable"})
     {:missing, ["authorized_at"]}
 
+A caller usually holds an index and a path rather than two type expressions,
+and the intended call is three lines with no helper in between: index the
+document, read the held type out of the index at the path, hand it to the
+check. There is no `satisfies_at/4` and none is planned - a fourth function
+over an index, a path and an expectation would only be these three lines
+with one argument order frozen into the surface.
+
+The one thing the three lines have to say is what an undeclared path
+answers. `Index.type/2` is spec'd `entry_type() | nil` and answers `nil` for
+a path the document does not declare; `nil` is outside `StatifierDatamodel.Types.t()`,
+so the caller coerces it - `|| :unknown` - and the check answers `:unknown`.
+An undeclared path is unknown, not wrong, which is the same stance the rest
+of this package takes.
+
+    iex> alias StatifierDatamodel.{Declarations, Index, Types}
+    iex> document = %{
+    ...>   "version" => 1,
+    ...>   "scopes" => [
+    ...>     %{"scope" => "local", "label" => "Chart-local", "entries" => [
+    ...>       %{"name" => "amount_cents", "path" => "amount_cents",
+    ...>         "type" => "integer", "label" => "Amount (minor units)"}]}],
+    ...>   "types" => [
+    ...>     %{"name" => "cards.credit_txn", "kind" => "record",
+    ...>       "label" => "Credit transaction", "fields" => [
+    ...>         %{"name" => "amount_cents", "type" => "integer", "required?" => true}]}]}
+    iex> index = Index.index(document)
+    iex> declarations = Declarations.from_document(document)
+    iex> held = Index.type(index, "amount_cents") || :unknown
+    iex> Types.satisfies(declarations, held, :integer)
+    :identical
+    iex> undeclared = Index.type(index, "card.cvv") || :unknown
+    iex> undeclared
+    :unknown
+    iex> Types.satisfies(declarations, undeclared, {:declared, "cards.credit_txn"})
+    :unknown
+
 ### An inline, unnamed shape
 
 A consumer holding a value the host never declared - a fan-out's collected

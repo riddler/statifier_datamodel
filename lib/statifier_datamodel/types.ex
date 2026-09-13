@@ -95,6 +95,29 @@ defmodule StatifierDatamodel.Types do
   names already being decided further up the same check is treated as
   satisfied rather than re-entered, so an obligation never depends on
   itself twice.
+
+  ## A consumer's own relation above this one
+
+  Layering above the check is intended, not a misuse. A consumer may wrap
+  `satisfies/3` in a relation of its own: a pre-relation that computes what
+  it holds and what it expects before the call - a template filter chain
+  resolved to the type it requires and the type it produces, say - and a
+  post-relation that decides something more after it. The palette's host
+  relation in `statifier_blocks`, named above, is exactly that pattern.
+
+  A wrapper may not weaken the check. Whenever `satisfies/3` answers
+  not-satisfied, the wrapping relation answers not-satisfied too: a read
+  this module rejects stays rejected in every package layered over it, and
+  a wrapper's freedom is to refuse more, never less. Widening a refusal into
+  an acceptance is a decision about the read check itself, which belongs in
+  this package's record rather than in a consumer's.
+
+  What a wrapper may assume about `t:reason/0`: its shape is public and
+  matching on it is supported. Reasons may be **added** as records take
+  decisions, so a consumer matches the ones it renders and passes anything
+  else to a default clause rather than assuming the list is closed. No
+  existing reason is removed or re-spelled before 1.0 without a **Breaking**
+  entry in `CHANGELOG.md` saying what to do about it.
   """
 
   import Kernel, except: [to_string: 1]

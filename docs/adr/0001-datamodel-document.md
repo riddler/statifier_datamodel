@@ -1368,3 +1368,57 @@ with another `{:declared, _}` or `{:shape, _}` and nothing else, so a held
 `:object` against an expected `{:declared, name}` reaches the final
 catch-all clause and returns `:not_assignable`. This note records the
 reading and its reason; it does not change an answer the code gives.
+
+## Note (2026-09-13): provenance is not a key of the datamodel document
+
+A dated note in this record's own convention - the one
+`## Note (2026-09-06): accepted, and the eight readings the flip records`
+above established: no status line, no clause of any decision edited, no
+line above this one touched, and no code changing with it. What follows
+declines a key an editor asked for, and records the cheap answer that is
+already in the document, so that the question is not re-asked.
+
+### The question
+
+Nothing in the document distinguishes a **host-supplied root** - a path that
+already carries a value before any screen of a flow runs - from a path a
+**flow writes** as it proceeds. Decision 2's three scopes (`global`, `local`,
+`event`, decision 3's shape) are about a value's lifetime and the scope it
+lives in, not about when within one run a particular entry acquires a value.
+An editor offering an author the paths available in a first-screen slot
+therefore cannot tell, from the document alone, that one local entry is
+filled before the run starts and another is filled three screens later.
+
+### The decision
+
+**Provenance is not a key of the datamodel document. No key is added for it,
+and no read here answers it.** Three reasons, in the order that decides it:
+
+1. **It is not a property of the document.** Provenance is a property of one
+   flow over the document. The same document under two flows gives two
+   answers for the same path, so a key on the entry would be a fact about one
+   consumer's flow written into the host's description of the data universe -
+   true for that flow, wrong for the next one, and unfalsifiable from here.
+2. **It is not decidable here.** Deciding when a path acquires its value
+   needs the block tree, which is the environment walk's input and lives in
+   the consuming package by decision 2. A key this package could neither
+   compute nor check would be prose the index carries and nothing verifies.
+3. **Nothing this record decides turns on it.** The read check decides what a
+   path holds, never when it holds it; compatibility and coverage are the
+   same. Adding the key would change no answer any function here gives.
+
+### The cheap answer, already in the document
+
+A host that does want to tell an author which paths are filled before a run
+starts has the entry's optional **`note`** for it - decision 3's key, which
+this record's own table marks as "prose for a reader; carries no contract",
+and which the index carries through unchanged. A note reading *supplied by
+the host before the first screen* is an advisory a pane renders beside the
+path. It is addressed to a human, it is one host's claim rather than this
+record's, and no check consults it: that is exactly what makes it cheap, and
+what keeps this record out of a question it cannot answer.
+
+If a consumer later needs provenance as something a machine reads rather
+than something a person reads, that is a decision for the package whose
+files would change - the one that holds the flow - recorded there against the
+walk it would drive, not a key retrofitted onto this document.
