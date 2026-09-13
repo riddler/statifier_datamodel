@@ -956,7 +956,7 @@ effect. No release has shipped it yet.]*
 Decision 5 gives a field's `type` a name-only grammar - "one of the nine
 types above, or the `name` of another declaration" - and decision 8 decides
 a read over exactly that grammar: unknown, identity, a record covering a
-shape, or not satisfied. `StatifierDatamodel.Types.t/0` is the same four
+shape, or not satisfied. `t:StatifierDatamodel.Types.t/0` is the same four
 possibilities in a type: a declared name, one of the nine, an opaque string
 a consumer carries, or unknown. Every structural statement in the system is
 therefore nominal, and a shape that is not declared anywhere cannot be said
@@ -1000,7 +1000,7 @@ carrying exactly three keys:
         | :unknown
 ```
 
-The member spelling mirrors `StatifierDatamodel.Declarations.field/0`'s
+The member spelling mirrors `t:StatifierDatamodel.Declarations.field/0`'s
 three contract-bearing keys and drops the three that carry no contract here:
 a member has no `label`, because nothing renders a member's name but the
 member's name; no `one_of`, because the `sd-wj1` amendment settled `one_of`
@@ -1092,7 +1092,7 @@ consequence of its being unnamed rather than a restriction added on top:
 
 1. **It cannot be referenced by name.** It has no `name`, it is never an
    entry of the `types` key, and no `{:declared, name}` resolves to one.
-   `StatifierDatamodel.Declarations.t/0` is still a map of *declarations*,
+   `t:StatifierDatamodel.Declarations.t/0` is still a map of *declarations*,
    and `fetch/2` never answers with an inline shape.
 2. **It carries no `one_of`.** Neither the shape nor any member has the key.
    `one_of` is a completion hint an editor draws from a document (the
@@ -1429,3 +1429,32 @@ If a consumer later needs provenance as something a machine reads rather
 than something a person reads, that is a decision for the package whose
 files would change - the one that holds the flow - recorded there against the
 walk it would drive, not a key retrofitted onto this document.
+
+---
+
+## Note (2026-09-13): three type references in this record spelled as function autolinks
+
+A dated note rather than an amendment. No decision of this record changes,
+no sentence's meaning changes, and no code changes with it. It records a
+spelling correction made in place, in three lines of prose above, and why
+the correction was made in place rather than by addition.
+
+Three references to this package's public types were written as a bare
+module-dot-name-slash-arity spelling inside backticks. ExDoc reads that spelling as a reference
+to a *function*, finds none, and emits an undefined-reference warning for
+each - so each link is dead on HexDocs. The three are the `Types.t/0`
+reference in the read-check section, the `Declarations.field/0` reference
+in the member-spelling paragraph, and the `Declarations.t/0` reference in
+the projection section. All three typespecs exist and are public
+(`lib/statifier_datamodel/types.ex`'s `@type t`, and
+`lib/statifier_datamodel/declarations.ex`'s `@type field` and `@type t`,
+read at `e24a324`).
+
+The corrected spelling is the type autolink prefix - a leading t-and-colon -
+which is what ExDoc wants for a type. ExDoc drops the `t:` when it renders,
+so every one of the three sentences reads on HexDocs exactly as it read
+before: the words, the order and the claim are unchanged, and only the
+source spelling of the link differs. That is why the correction was made in
+place rather than appended: appending a corrected copy of three sentences
+would leave three dead links in the record's body for a reader to follow,
+which is the defect itself. This note is the record of the edit.
