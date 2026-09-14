@@ -18,13 +18,12 @@ git log --oneline --no-patch -L '/@version/,+1:mix.exs'
 The first line is the last commit that moved `@version`, and the last commit
 that moved `@version` is the last release prep by definition.
 
-**Except while that is still false here**, which it is until the first version
-bump lands: `mix.exs` has carried `0.1.0` since the scaffold, so the command
-above resolves to the scaffold commit rather than to a prep. Until a bump has
-moved the attribute once, resolve the reference from the changelog instead -
-`git log --oneline --no-patch -1 -- CHANGELOG.md` finds the 0.1.0 prep, which
-is the shape to copy. The paragraph on first releases below says why the
-attribute did not move.
+That was not always true here. `mix.exs` carried its scaffold version until
+the first bump landed, so the command above resolved to the scaffold commit
+rather than to a prep, and the reference had to be read from the changelog
+instead. Release preps have moved `@version` since, so the command resolves to
+a prep and that workaround no longer applies. The paragraph on first releases
+below says why the attribute did not move at the first release.
 
 Where this file and the reference commit disagree, the commit is the evidence
 and this file is the defect.
