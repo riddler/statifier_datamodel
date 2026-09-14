@@ -1440,15 +1440,15 @@ spelling correction made in place, in three lines of prose above, and why
 the correction was made in place rather than by addition.
 
 Three references to this package's public types were written as a bare
-module-dot-name-slash-arity spelling inside backticks. ExDoc reads that spelling as a reference
-to a *function*, finds none, and emits an undefined-reference warning for
-each - so each link is dead on HexDocs. The three are the `Types.t/0`
-reference in the read-check section, the `Declarations.field/0` reference
-in the member-spelling paragraph, and the `Declarations.t/0` reference in
-the projection section. All three typespecs exist and are public
-(`lib/statifier_datamodel/types.ex`'s `@type t`, and
-`lib/statifier_datamodel/declarations.ex`'s `@type field` and `@type t`,
-read at `e24a324`).
+module-dot-name-slash-arity spelling inside backticks. ExDoc reads that
+spelling as a reference to a *function*, finds none, and emits an
+undefined-reference warning for each - so each link is dead on HexDocs. The
+three are the `Types.t/0` reference in the read-check section, the
+`Declarations.field/0` reference in the member-spelling paragraph, and the
+`Declarations.t/0` reference in the projection section. All three typespecs
+exist and are public (`lib/statifier_datamodel/types.ex`'s `@type t`, and
+`lib/statifier_datamodel/declarations.ex`'s `@type field` and `@type t`, read
+at `e24a324`).
 
 The corrected spelling is the type autolink prefix - a leading t-and-colon -
 which is what ExDoc wants for a type. ExDoc drops the `t:` when it renders,
