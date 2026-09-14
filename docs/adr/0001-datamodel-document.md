@@ -1434,7 +1434,10 @@ walk it would drive, not a key retrofitted onto this document.
 
 ## Note (2026-09-13): three type references in this record spelled as function autolinks
 
-A dated note rather than an amendment. No decision of this record changes,
+A dated note rather than an amendment, recorded on `sd-kdd` under
+RQ-RF046-10, the ruling that a note's heading names the decision it is about
+and never a bead id while its first paragraph may name the bead and the
+ruling the note was recorded for. No decision of this record changes,
 no sentence's meaning changes, and no code changes with it. It records a
 spelling correction made in place, in three lines of prose above, and why
 the correction was made in place rather than by addition.
@@ -1442,7 +1445,8 @@ the correction was made in place rather than by addition.
 Three references to this package's public types were written as a bare
 module-dot-name-slash-arity spelling inside backticks. ExDoc reads that
 spelling as a reference to a *function*, finds none, and emits an
-undefined-reference warning for each - so each link is dead on HexDocs. The
+undefined-reference warning for each (`ex_doc` 0.40.4, the version this
+repository's `mix.lock` resolves) - so each link is dead on HexDocs. The
 three are the `Types.t/0` reference in the read-check section, the
 `Declarations.field/0` reference in the member-spelling paragraph, and the
 `Declarations.t/0` reference in the projection section. All three typespecs
