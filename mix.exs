@@ -98,7 +98,7 @@ defmodule StatifierDatamodel.MixProject do
   defp deps do
     [
       # Dev / test
-      {:ex_quality, "~> 0.14", only: :dev, runtime: false},
+      {:ex_quality, "~> 0.15", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
