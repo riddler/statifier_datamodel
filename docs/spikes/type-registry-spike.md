@@ -1,6 +1,6 @@
 # Spike: statifier_datamodel as the shared type registry for element contexts
 
-**Status: findings, 2026-09-12 (campaign SF040, bead `sd-2mq`). Capture-only:
+**Status: findings, 2026-09-12 (bead `sd-2mq`). Capture-only:
 this document is the deliverable; nothing in `lib/` changed and no dependency
 was added.** Read at `9bc5041`.
 
@@ -275,7 +275,7 @@ spike, and every consumer will meet it.
 ## 6. Asks
 
 Each of these is reported to the campaign conductor for filing; none is filed
-by this document, and none is worked in SF040.
+by this document, and none is worked in this spike's campaign.
 
 **Ask 1 - a documented contract for a consumer's own type relation, above the
 read check.** The element package will compute "what does this filter chain
@@ -350,7 +350,7 @@ relation, not a new one.
 One cold review pass ran on this document at the campaign's review gate.
 **Pass 1 verdict: QUALIFIED, 5 findings, 0 blocking.** A spike findings
 document is merged with its qualifications recorded rather than cured
-(campaign SF040 consent, clause 6), so the five are written out here and the
+(the campaign consent, clause 6), so the five are written out here and the
 body above is left as the reviewer read it.
 
 1. **Ask 5 is not an ask.** It names no owning repository and no work, so a
@@ -422,7 +422,7 @@ re-executed the scratch run rather than reading the quotes.
           "path": "answers",
           "type": "signup.answers",
           "label": "Answers",
-          "note": "Every answer the path has collected, keyed by element key and flat (R10d). Declared AS the record so a text slot's read of it is checked against what the elements promise."
+          "note": "Every answer the path has collected, keyed by element key and flat (ruled by the operator, 2026-09-12). Declared AS the record so a text slot's read of it is checked against what the elements promise."
         }
       ]
     },

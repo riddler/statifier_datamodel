@@ -674,8 +674,7 @@ the record reads as each line below says.
 
 ## Amendment (2026-09-06): decision 8, an optional record field does not cover a required shape field
 
-**Status: accepted (2026-09-06), on the operator's campaign-033 ruling
-RQ-033-9.** Narrowing, not additive: it is a breaking change to the read
+**Status: accepted (2026-09-06), on the operator's ruling.** Narrowing, not additive: it is a breaking change to the read
 check, and it is why the release carrying it is a MINOR under `0.x`. No text
 above this line is edited by this section, and the amendment takes effect
 when `sd-7zl` lands the code and the status flips.
@@ -762,8 +761,7 @@ status line at the head of this section now reads accepted.]*
 
 ## Amendment (2026-09-06): a field's `one_of` is a completion hint, a field going required -> optional is a break, and a scope entry's `type` may name a declaration
 
-**Status: accepted (2026-09-06), on the operator's campaign-034 ruling
-RQ-034-4.** Three clauses, two of which move in opposite directions: a
+**Status: accepted (2026-09-06), on the operator's ruling.** Three clauses, two of which move in opposite directions: a
 redefinition may now do something it could not (arm a), a document may now
 declare something it could not (arm b), and one redefinition that used to be
 compatible is now breaking (the row arm a's pass forced). Between them they
@@ -941,8 +939,7 @@ an amendment whose record and code are one bead.]*
 
 ## Amendment (2026-09-06): a type expression admits an inline, unnamed shape beside a declared name
 
-**Status: accepted (2026-09-06), on the operator's campaign-SF035 ruling
-RQ-SF035-1.** Additive: it grows the type-expression grammar by one arm and
+**Status: accepted (2026-09-06), on the operator's ruling.** Additive: it grows the type-expression grammar by one arm and
 decision 8's read check by one step, and takes nothing away from a document
 already written. No text above this line is edited by this section, and the
 amendment takes effect when `sd-izx` lands the code and the status flips.
@@ -1435,7 +1432,7 @@ walk it would drive, not a key retrofitted onto this document.
 ## Note (2026-09-13): three type references in this record spelled as function autolinks
 
 A dated note rather than an amendment, recorded on `sd-kdd` under
-RQ-RF046-10, the ruling that a note's heading names the decision it is about
+the ruling that a note's heading names the decision it is about
 and never a bead id while its first paragraph may name the bead and the
 ruling the note was recorded for. No decision of this record changes,
 no sentence's meaning changes, and no code changes with it. It records a
