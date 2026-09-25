@@ -27,7 +27,7 @@ documents the first element of a break as the *kind*, the row of the
 redefinition table the break came from, so a `case` over the five kinds is
 exhaustive without re-deriving from the two declarations why a row broke. The
 inline shape arm is recorded in the sd-ADR-0001 amendment, accepted on the
-operator's campaign-SF035 ruling.
+operator's ruling of 2026-09-06.
 
 ### Added
 
@@ -62,7 +62,7 @@ going required -> optional is a break, `{:made_optional, name}`, which is what
 declares, and `Index.type/2` answers `{:declared, name}` for one. A caller
 matching on the tuple that is gone stops matching, which is why this release is
 a MINOR under `0.x`. Both arms are recorded in the sd-ADR-0001 amendment
-accepted on the operator's campaign-034 ruling.
+accepted on the operator's ruling of 2026-09-06.
 
 ### Added
 
