@@ -33,9 +33,10 @@
   # The two docs stages make the gate the pre-publish check for this
   # package's docs. The Docs stage fails on any ExDoc warning. The doc_links
   # stage fails on the link rules ExDoc accepts silently: a README relative
-  # link to a file not in the package files, a published relative link to a
-  # file that is not an extra, two extras sharing a basename, and a silent
-  # rewrite of a link to a different extra.
+  # link to a file not in the package files, a relative link in a Markdown
+  # extra to a file that is not itself an extra (moduledoc links are the Docs
+  # stage's), two extras sharing a basename, and a silent rewrite of a link to
+  # a different extra.
   docs: [
     enabled: :auto
   ],
