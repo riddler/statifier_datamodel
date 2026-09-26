@@ -1459,3 +1459,20 @@ source spelling of the link differs. That is why the correction was made in
 place rather than appended: appending a corrected copy of three sentences
 would leave three dead links in the record's body for a reader to follow,
 which is the defect itself. This note is the record of the edit.
+
+---
+
+## Note (2026-09-26): the document's JSON Schema is decided in ADR-0002
+
+A dated note rather than an amendment: no decision of this record changes,
+no sentence above is edited, and no code changes with it. It points a reader
+of this record at the one that decides the document's JSON Schema.
+
+ADR-0002 (proposed 2026-09-26) ships a hand-written draft-07 JSON Schema of
+the document decisions 3-5 and 13 specify, as amended above. That record is
+where the schema's file, its reader, its `$id` and the rule for when it
+changes are decided. It is advisory in decision 12's sense: `index/1` stays
+decision 6's total normalizer, nothing in this package calls the schema, and
+a document the schema rejects indexes exactly as this record says it does.
+Where the schema and this record ever differ about what a well-formed
+document is, this record is the contract and the schema is the defect.

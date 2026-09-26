@@ -3,6 +3,7 @@
 | # | Decision | Status |
 |---|---|---|
 | [0001](0001-datamodel-document.md) | The datamodel document, re-homed: a typed three-scope declaration with named record and shape types, and the declared-path set as its projection | accepted |
+| [0002](0002-datamodel-document-json-schema.md) | The datamodel document ships a JSON Schema - draft-07, hand-written, advisory, never the admission rule | proposed |
 
 New ADRs: next number, same three-section format (Context, Decision,
 Consequences), plus the typespecs and worked-example sections this family's
