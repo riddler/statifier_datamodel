@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/riddler/statifier_datamodel/schemas/datamodel-document/v1.schema.json",
+  "title": "Datamodel document, version 1",
+  "description": "A host's typed description of the data universe an author writes conditions against (statifier_datamodel ADR-0001). Advisory: this schema describes the well-formed document and is deliberately stricter than the package's admission step, which never calls it (ADR-0002).",
+  "type": "object",
+  "required": ["version", "scopes"],
+  "properties": {
+    "version": {
+      "description": "The document version this file describes.",
+      "const": 1
+    },
+    "scopes": {
+      "description": "Exactly three scopes, in the order global, local, event.",
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": [
+        {"allOf": [{"$ref": "#/definitions/scope"}, {"properties": {"scope": {"const": "global"}}}]},
+        {"allOf": [{"$ref": "#/definitions/scope"}, {"properties": {"scope": {"const": "local"}}}]},
+        {"allOf": [{"$ref": "#/definitions/scope"}, {"properties": {"scope": {"const": "event"}}}]}
+      ]
+    },
+    "types": {
+      "description": "Named record and shape declarations.",
+      "type": "array",
+      "items": {"$ref": "#/definitions/declaration"}
+    }
+  },
+  "definitions": {
+    "closed_type": {
+      "description": "The nine closed type spellings. An entry's or a field's type and item_type is one of these or the name of a declaration under types; a schema cannot check the latter against the document's own list, so those keys are typed as strings and this enumeration names the nine.",
+      "enum": [
+        "string",
+        "integer",
+        "decimal",
+        "boolean",
+        "datetime",
+        "duration",
+        "date",
+        "object",
+        "list"
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "required": ["scope", "label", "description", "entries"],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/entry"}
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "required": ["name", "path", "type", "label"],
+      "properties": {
+        "name": {"type": "string"},
+        "path": {"type": "string"},
+        "type": {"type": "string"},
+        "label": {"type": "string"},
+        "fields": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/entry"}
+        },
+        "item_type": {"type": "string"},
+        "example": {},
+        "note": {"type": "string"},
+        "one_of": {"type": "array"},
+        "sensitive?": {"type": "boolean"}
+      }
+    },
+    "declaration": {
+      "type": "object",
+      "required": ["name", "kind", "label", "fields"],
+      "properties": {
+        "kind": {"enum": ["record", "shape"]},
+        "fields": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/field"}
+        },
+        "note": {"type": "string"}
+      }
+    },
+    "field": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {"type": "string"},
+        "type": {"type": "string"},
+        "required?": {"type": "boolean"},
+        "item_type": {"type": "string"},
+        "label": {"type": "string"},
+        "note": {"type": "string"},
+        "one_of": {"type": "array"}
+      }
+    }
+  }
+}

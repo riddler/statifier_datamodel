@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "scopes": [
+    {
+      "scope": "global",
+      "label": "Global",
+      "description": "Host-owned. The same for every run of every chart.",
+      "entries": [
+        {
+          "name": "limits", "path": "limits", "type": "object", "label": "Limits",
+          "fields": [
+            {"name": "authorization_window", "path": "limits.authorization_window",
+             "type": "duration", "label": "Authorization window", "example": "15m"}
+          ]
+        }
+      ]
+    },
+    {
+      "scope": "local",
+      "label": "Chart-local",
+      "description": "One per run. Written by the steps of the chart as it goes.",
+      "entries": [
+        {"name": "amount_cents", "path": "amount_cents", "type": "integer",
+         "label": "Amount (minor units)", "example": 42350},
+        {"name": "risk_reasons", "path": "risk_reasons", "type": "list",
+         "item_type": "string", "label": "Risk reasons",
+         "example": ["velocity", "new_device"]},
+        {
+          "name": "card", "path": "card", "type": "object", "label": "Card",
+          "fields": [
+            {"name": "brand", "path": "card.brand", "type": "string", "label": "Brand",
+             "one_of": ["visa", "mastercard", "amex"]},
+            {"name": "last4", "path": "card.last4", "type": "string", "label": "Last four"},
+            {"name": "expires_on", "path": "card.expires_on", "type": "date",
+             "label": "Expires on", "example": "2028-11-30"}
+          ]
+        }
+      ]
+    },
+    {
+      "scope": "event",
+      "label": "Event payload",
+      "description": "The payload of the event being handled.",
+      "entries": [
+        {"name": "event.name", "path": "event.name", "type": "string", "label": "Event name"}
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "cards.credit_txn", "kind": "record", "label": "Credit transaction",
+      "fields": [
+        {"name": "amount_cents", "type": "integer", "required?": true},
+        {"name": "currency", "type": "string", "required?": true,
+         "one_of": ["USD", "EUR", "GBP"]},
+        {"name": "card", "type": "cards.card", "required?": true},
+        {"name": "authorized_at", "type": "datetime", "required?": true},
+        {"name": "risk_reasons", "type": "list", "item_type": "string"}
+      ]
+    },
+    {
+      "name": "cards.card", "kind": "record", "label": "Card",
+      "fields": [
+        {"name": "brand", "type": "string", "required?": true},
+        {"name": "last4", "type": "string", "required?": true},
+        {"name": "expires_on", "type": "date", "required?": true}
+      ]
+    },
+    {
+      "name": "Settleable", "kind": "shape", "label": "Settleable",
+      "fields": [
+        {"name": "amount_cents", "type": "integer", "required?": true},
+        {"name": "currency", "type": "string", "required?": true},
+        {"name": "authorized_at", "type": "datetime", "required?": true}
+      ]
+    },
+    {
+      "name": "Refundable", "kind": "shape", "label": "Refundable",
+      "fields": [
+        {"name": "amount_cents", "type": "integer", "required?": true},
+        {"name": "settled_at", "type": "datetime", "required?": true}
+      ]
+    }
+  ]
+}
