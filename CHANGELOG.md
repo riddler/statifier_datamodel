@@ -12,6 +12,23 @@ the fragments are assembled
 into a version section at release. See that README for the format and for when a
 change warrants an entry at all.
 
+## [0.5.0] 2026-09-26
+
+The datamodel document gains a JSON Schema a host can validate against.
+The package now ships a hand-written draft-07 schema of the version-1
+document in its tarball, and `StatifierDatamodel.Schema` answers where it
+is installed and what it says, so a host checks a document with the
+draft-07 validator its own language already has before anything indexes
+it. The schema is advisory: nothing in the package calls it, and
+`StatifierDatamodel.Index.index/1` answers exactly as before for every
+document. Upgrading needs no migration and adds no runtime dependency; the
+release is a MINOR under `0.x` because it adds a module and a shipped file
+and changes no existing signature.
+
+### Added
+
+- `priv/schemas/datamodel-document.schema.json`, a hand-written draft-07 JSON Schema of the version-1 datamodel document, ships in the package; `StatifierDatamodel.Schema.path/0` answers where it is installed and `json/0` its text. It is advisory: nothing in the package calls it, and `StatifierDatamodel.Index.index/1` answers exactly as before for every document.
+
 ## [0.4.0] 2026-09-06
 
 A type expression grows one arm. A consumer holding a structural value the
