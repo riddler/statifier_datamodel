@@ -63,7 +63,7 @@ defmodule StatifierDatamodel.MixProject do
       # inside one of them.
       groups_for_modules: [
         "Document and index": [
-          ~r/^StatifierDatamodel\.(Document|Index)($|\.)/
+          ~r/^StatifierDatamodel\.(Document|Index|Schema)($|\.)/
         ],
         "Declared types": [
           ~r/^StatifierDatamodel\.(Types|Declarations)($|\.)/
@@ -80,7 +80,9 @@ defmodule StatifierDatamodel.MixProject do
     [
       name: "statifier_datamodel",
       licenses: ["MIT"],
-      files: ~w(lib mix.exs .formatter.exs README.md LICENSE CHANGELOG.md),
+      # priv/schemas carries the document's JSON Schema (ADR-0002), so it is
+      # in the tarball a host fetches and not only in the repository.
+      files: ~w(lib priv/schemas mix.exs .formatter.exs README.md LICENSE CHANGELOG.md),
       links: %{
         "GitHub" => @source_url,
         "Changelog" => "#{@source_url}/blob/main/CHANGELOG.md"
@@ -102,6 +104,10 @@ defmodule StatifierDatamodel.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
+      # The validator the schema's own tests run under (ADR-0002 decision
+      # 10). Test-only: the package never validates a document, so this is
+      # not a runtime dependency and lands in no host's tree.
+      {:ex_json_schema, "~> 0.11", only: :test, runtime: false},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false}
     ]
   end
