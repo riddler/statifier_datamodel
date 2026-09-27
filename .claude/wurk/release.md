@@ -193,8 +193,14 @@ A first release, per the section above, touches the same set minus `mix.exs`.
 ## What a release here still is not
 
 The skill does not tag, push, open a request or publish, and this extension
-does not either. In this repo those are the operator's, in every campaign and
-outside every campaign - `CLAUDE.md`'s authority table says so, and the one
-exception it names is a release-prep request: the version bump and the
-changelog promotion above, no tag, under a campaign consent clause that names
-it.
+does not either. Who does each of those is `CLAUDE.md`'s authority table, not
+this file. A release prep - the version bump and the changelog promotion
+above - is the family norm on a release bead the operator has named (in the
+campaign plan or their own words), not a grant a campaign consent has to
+name; it lands through the same commit, push and request rows as any other
+change. Once that prep is merged to `origin/main`, the conductor or the
+session that owns the release bead tags that merged commit with the new
+version and pushes the tag. The tag never comes before the prep is on
+`origin/main`. Publishing (`mix hex.publish`, a docs republish included) and
+the release itself stay the operator's, in every campaign and outside every
+campaign, and no consent or relay delegates them.
