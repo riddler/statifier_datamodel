@@ -1,6 +1,6 @@
 # ADR-0002: The datamodel document ships a JSON Schema - draft-07, hand-written, advisory, never the admission rule
 
-Status: proposed (2026-09-26). Acceptance is the operator's; this record does
+Status: accepted (2026-09-27). Acceptance is the operator's; this record does
 not flip its own status.
 
 Ruled by the operator, 2026-09-26: this package's own document gets a JSON
@@ -251,3 +251,44 @@ schema's answer asks a validator; the package never does.
   to report, as ADR-0001 left them.
 - A `version` bump now costs a second schema file as well as the record that
   makes it.
+
+## Note (2026-09-27): accepted - the schema file and its reader shipped in 0.5.0
+
+This record is accepted as of 2026-09-27, on the operator's word that day.
+The status line above moved and nothing else in the record did: every
+decision reads as written, and the sentence under the status line that says
+this record does not flip its own status stays true - the operator flipped
+it.
+
+The code it decides shipped in `statifier_datamodel` 0.5.0 (tag `v0.5.0` at
+`71de7e0`). Every claim above was verified against that tag and against
+`main` at `fde6da6`, whose only commit after the tag touches none of the
+files this record cites:
+
+- the file and its draft (decision 1): `priv/schemas/datamodel-document.schema.json`,
+  whose `$schema` is draft-07, and `priv/schemas` in the Hex package's
+  `files:` list (`mix.exs`, `package/0`, read at `fde6da6`);
+- the drift test (decision 2): `test/statifier_datamodel/schema_test.exs`,
+  "each spelling the schema lists indexes to a type; one outside them does
+  not", against `index.ex`'s private `@types` map (read at `fde6da6`);
+- the reader (decision 3): `StatifierDatamodel.Schema`, `path/0` and
+  `json/0`, the file embedded with `@external_resource`, and no caller of
+  either function anywhere in `lib/` (read at `fde6da6`);
+- advisory, never admission (decision 4): each near-miss of the worked
+  example is rejected by the schema and still indexes as the table says
+  (`test/statifier_datamodel/schema_test.exs`, "the near-misses", read at
+  `fde6da6`);
+- what the schema requires, `type` as a string beside the nine, open objects
+  and the `$id` (decisions 5-8): the file's `definitions`, its `required`
+  lists and its `$id` as the record states them, with no
+  `additionalProperties` anywhere in it;
+- the test-only validator (decision 10): `ex_json_schema ~> 0.11`,
+  `only: :test` (`mix.exs`, `deps/0`, read at `fde6da6`).
+
+Two readings the flip records, neither a change to what the record decides.
+Decision 5 names some keys as required without giving them a type - a
+scope's `scope`, `label` and `description`, a declaration's `name` and
+`label` - and the file requires those keys without typing them, which is
+what the decision says and no more. Decision 8's `$id` is an identifier that
+no request fetches, and the URL it spells does not resolve; the decision
+already says it is never fetched.
