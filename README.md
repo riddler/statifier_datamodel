@@ -95,6 +95,7 @@ in the record is the one-key fix.
   - [Types and the read check](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Types.html): the type expressions, inline shapes, and every answer `satisfies/3` gives.
   - [The changelog](https://github.com/riddler/statifier_datamodel/blob/main/CHANGELOG.md): what changed in each version.
 - Understand
+  - [Why the family shares one type registry](docs/explanation/why-one-type-registry.md): why the block editor and the expression editor read the document through one package that depends on neither, and what that costs.
   - [What is here and what is not](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.html): the questions this package answers, and why the environment walk, rendering and enforcement live elsewhere.
   - [The decision records](https://github.com/riddler/statifier_datamodel/tree/main/docs/adr): why the document and the read check are shaped the way they are.
 

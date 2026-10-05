@@ -48,12 +48,18 @@ defmodule StatifierDatamodel.MixProject do
       # ungrouped at the top of the sidebar. Every other page is grouped by
       # the kind of page it is, in this order and under these names only:
       # Tutorials, How-to guides, Reference, Explanation, Upgrading. A group
-      # is added with its first page, never empty, so there is none yet.
+      # is added with its first page, never empty.
       # The decision records under docs/adr are a record for contributors,
       # not pages for a reader of the package: they are not extras, and the
       # README links them on GitHub by absolute URL.
-      extras: ["README.md", "CHANGELOG.md"],
-      groups_for_extras: [],
+      extras: [
+        "README.md",
+        "CHANGELOG.md",
+        "docs/explanation/why-one-type-registry.md"
+      ],
+      groups_for_extras: [
+        Explanation: ~r{^docs/explanation/}
+      ],
       # The groups follow the package's own seams so the sidebar reads as the
       # architecture rather than as the alphabet: the document and its index,
       # the declared types and the read check, and what is decided across two
@@ -83,7 +89,10 @@ defmodule StatifierDatamodel.MixProject do
       licenses: ["MIT"],
       # priv/schemas carries the document's JSON Schema (ADR-0002), so it is
       # in the tarball a host fetches and not only in the repository.
-      files: ~w(lib priv/schemas mix.exs .formatter.exs README.md LICENSE CHANGELOG.md),
+      # The README links the pages under docs/explanation by a relative path,
+      # so they ship in the tarball for those links to resolve on hex.pm.
+      files:
+        ~w(lib priv/schemas docs/explanation mix.exs .formatter.exs README.md LICENSE CHANGELOG.md),
       links: %{
         "GitHub" => @source_url,
         "Changelog" => "#{@source_url}/blob/main/CHANGELOG.md"
