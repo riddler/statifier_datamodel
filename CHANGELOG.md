@@ -12,6 +12,21 @@ the fragments are assembled
 into a version section at release. See that README for the format and for when a
 change warrants an entry at all.
 
+## [0.5.1] 2026-10-05
+
+A documentation release. The code is unchanged from 0.5.0: no module,
+function, type or shipped schema moves, and upgrading needs nothing. What
+changes is what a reader finds on hexdocs and on the package page.
+
+### Added
+
+- "Why the family shares one type registry", an explanation page on why the block editor and the expression editor read the datamodel document through one package that depends on neither, what it returns, the alternatives weighed and what the arrangement costs; it ships in the package so the README's link to it resolves on hex.pm.
+
+### Changed
+
+- The README is rewritten as an introduction: what the package is, why it exists, how to install it, one basic-usage example (still run as a doctest), a documentation map grouped by the reader's question that links the module pages, the explanation page and the decision records, and compatibility. The per-function walk leaves the README; the module documentation on hexdocs already carries it.
+- The hexdocs sidebar groups pages by the kind of page they are, with the README and this changelog ungrouped at the top and the new Explanation group below them. The decision records are no longer published as hexdocs pages; the README links them on GitHub.
+
 ## [0.5.0] 2026-09-26
 
 The datamodel document gains a JSON Schema a host can validate against.
