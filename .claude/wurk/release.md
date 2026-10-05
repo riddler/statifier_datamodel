@@ -201,6 +201,7 @@ name; it lands through the same commit, push and request rows as any other
 change. Once that prep is merged to `origin/main`, the conductor or the
 session that owns the release bead tags that merged commit with the new
 version and pushes the tag. The tag never comes before the prep is on
-`origin/main`. Publishing (`mix hex.publish`, a docs republish included) and
-the release itself stay the operator's, in every campaign and outside every
-campaign, and no consent or relay delegates them.
+`origin/main`. An agent or a session never runs `mix hex.publish` (a docs
+republish included): the release workflow publishes on that tag's push, and
+a failed workflow is re-run from its Actions page, never worked round by a
+local publish.
