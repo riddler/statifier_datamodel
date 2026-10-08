@@ -55,10 +55,12 @@ defmodule StatifierDatamodel.MixProject do
       extras: [
         "README.md",
         "CHANGELOG.md",
-        "docs/explanation/why-one-type-registry.md"
+        "docs/explanation/why-one-type-registry.md",
+        "docs/upgrading.md"
       ],
       groups_for_extras: [
-        Explanation: ~r{^docs/explanation/}
+        Explanation: ~r{^docs/explanation/},
+        Upgrading: ["docs/upgrading.md"]
       ],
       # The groups follow the package's own seams so the sidebar reads as the
       # architecture rather than as the alphabet: the document and its index,
@@ -89,10 +91,11 @@ defmodule StatifierDatamodel.MixProject do
       licenses: ["MIT"],
       # priv/schemas carries the document's JSON Schema (ADR-0002), so it is
       # in the tarball a host fetches and not only in the repository.
-      # The README links the pages under docs/explanation by a relative path,
-      # so they ship in the tarball for those links to resolve on hex.pm.
+      # The README links the pages under docs/explanation and the upgrading
+      # page by a relative path, so they ship in the tarball for those links
+      # to resolve on hex.pm.
       files:
-        ~w(lib priv/schemas docs/explanation mix.exs .formatter.exs README.md LICENSE CHANGELOG.md),
+        ~w(lib priv/schemas docs/explanation docs/upgrading.md mix.exs .formatter.exs README.md LICENSE CHANGELOG.md),
       links: %{
         "GitHub" => @source_url,
         "Changelog" => "#{@source_url}/blob/main/CHANGELOG.md"

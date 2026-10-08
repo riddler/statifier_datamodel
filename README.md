@@ -88,6 +88,7 @@ in the record is the one-key fix.
   - [Check a redefined type before you ship it](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Compatibility.html): every way the new declaration narrows the old one, in the API reference until a guide page exists.
   - [Find the required fields a value leaves unfilled](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Coverage.html): a map checked against a shape, in the API reference until a guide page exists.
   - [Validate a document before you index it](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Schema.html): where the JSON Schema is and what it rejects, in the API reference until a guide page exists.
+  - [Upgrade a host](docs/upgrading.md): what a host changes for each minor from 0.4 on.
 - Look up
   - [The index](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Index.html): admission, declared paths, the type at a path, and the value kinds an expression editor reads.
   - [The document shorthand](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Document.html): declared paths, candidates under a prefix and declared values, straight from a document.
