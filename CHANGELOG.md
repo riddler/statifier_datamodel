@@ -12,6 +12,20 @@ the fragments are assembled
 into a version section at release. See that README for the format and for when a
 change warrants an entry at all.
 
+## [0.5.2] 2026-10-08
+
+A documentation release. The code is unchanged from 0.5.1: no module,
+function, type or shipped schema moves, and upgrading needs nothing. What
+changes is what a reader finds on hexdocs and on the package page.
+
+### Added
+
+- "Upgrading a host from 0.4 to 0.5", a page that says what a host changes to move from 0.4 to 0.5 and on to the 0.5.1 patch, and says NONE where the answer is nothing; it ships in the package so the README's link to it resolves on hex.pm.
+
+### Changed
+
+- The hexdocs sidebar gains an Upgrading group holding the new page, below the Explanation group, and the README's documentation map links the page.
+
 ## [0.5.1] 2026-10-05
 
 A documentation release. The code is unchanged from 0.5.0: no module,
