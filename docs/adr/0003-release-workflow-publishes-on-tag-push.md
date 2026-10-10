@@ -1,6 +1,7 @@
 # ADR-0003: A release workflow publishes to Hex on the push of a version tag, and only from a green, matching commit on the default branch
 
-Status: proposed. It is accepted once a version of this package has been
+Status: accepted (2026-10-10, statifier_datamodel 0.5.1). It is accepted once
+a version of this package has been
 published through the workflow it records; this record does not flip its own
 status.
 
@@ -121,3 +122,57 @@ repository may carry one.
   decides how a version reaches Hex, not what any version contains.
 - This record is accepted under the family's standard once a version has
   been published through the workflow, with that run as the evidence.
+
+## Note (2026-10-10): accepted - the workflow published 0.5.1, and 0.5.2 after it
+
+This record is accepted as of 2026-10-10. The status word above moved and
+nothing else in the record did. The condition the Status paragraph names,
+and the last bullet under Consequences, is met: a version of this package has
+been published through the workflow this record decides, and that run is the
+evidence. The sentence that says this record does not flip its own status
+stays true; the flip is this Note's. The flip wave and its evidence were
+ruled by the operator, 2026-10-06; the shape of this Note (the first publish
+as the evidence, the later publishes by version and run, the SHA every claim
+was re-verified at) was decided by the conductor under a standing consent,
+2026-10-10.
+
+The first publish through the workflow: `statifier_datamodel` 0.5.1, tag
+`v0.5.1` at `b6b6478`, run
+https://github.com/riddler/statifier_datamodel/actions/runs/37308069588,
+on its first attempt, every step green through "Publish to Hex" and "Print
+the published version's address". The later publish through the workflow:
+0.5.2, tag `v0.5.2` at `b01755d`, run
+https://github.com/riddler/statifier_datamodel/actions/runs/37738499553,
+also on its first attempt. hex.pm shows both versions.
+
+Every claim above was re-verified against `main` at `b01755d` on
+2026-10-10. The two commits after the 0.5.1 tag touch `mix.exs`, the README,
+the changelog and a new docs page, and change none of what this record
+states:
+
+- the trigger (decision 1): `.github/workflows/release.yml` runs on a push of
+  a tag matching `v*.*.*` and nothing else, its `concurrency` group is keyed
+  by the ref with `cancel-in-progress: false`, and its token is
+  `contents: read`;
+- the three conditions (decision 2): the steps "Check the tagged commit is
+  on the default branch" (the branch read from
+  `github.event.repository.default_branch`, asked with
+  `git merge-base --is-ancestor`), "Check the tag names the version in
+  mix.exs" and "Full quality gate" (the `gate.full` command read from
+  `.claude/wurk.json`, today `mix quality`), and "Check Hex does not already
+  show this version" ahead of the toolchain install, which stops on any
+  answer but "not found";
+- the toolchain and gate steps copied from `ci.yml` (decision 2 and the
+  Consequences): the toolchain read from `mise.toml`, `erlef/setup-beam`,
+  the deps and build cache and the gate step read the same in both files;
+- the key (decision 3): `HEX_API_KEY` is an organisation secret, read only
+  by the step "Publish to Hex" through its own `env:`, which runs
+  `mix hex.publish --yes`; no other file in this repository names it but
+  this record;
+- the docs (decision 4): the publish keeps `mix hex.publish`'s default, and
+  HexDocs serves both 0.5.1 and 0.5.2;
+- the failed-publish rule and who never publishes (decision 5 and the
+  Consequences): `CLAUDE.md`'s release-prep row, its relay paragraph and its
+  "Release preps" paragraph, and `.claude/wurk/release.md`'s closing
+  paragraph, say that an agent or a session never runs the publish and that
+  a failed workflow is re-run from its Actions page.
