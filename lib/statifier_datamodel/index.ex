@@ -162,7 +162,7 @@ defmodule StatifierDatamodel.Index do
   would decide a rule no record has drawn.
   """
 
-  alias StatifierDatamodel.Declarations
+  alias StatifierDatamodel.{Declarations, Types}
 
   @typedoc """
   The closed type set. No floats anywhere: money is integer minor units,
@@ -428,7 +428,7 @@ defmodule StatifierDatamodel.Index do
     index
     |> entries()
     |> Enum.flat_map(fn entry ->
-      case value_kind(entry) do
+      case entry_value_kind(entry) do
         nil -> []
         kind -> [{entry.path, kind}]
       end
@@ -523,36 +523,25 @@ defmodule StatifierDatamodel.Index do
 
   # -- value kinds -----------------------------------------------------------
 
-  @spec value_kind(entry()) :: value_kind() | nil
-  defp value_kind(entry) do
+  @spec entry_value_kind(entry()) :: value_kind() | nil
+  defp entry_value_kind(entry) do
     case drawable(entry.one_of) do
       nil -> kind(entry)
       values -> {:one_of, values}
     end
   end
 
-  # A list describes itself through its element type, so a list with no
-  # usable one has no kind - `{:list, nil}` would be an editor rendering a
-  # list of nothing.
+  # The nine are mapped onto the expression language's six by
+  # `Types.value_kind/1`, the one table. A list describes itself through its
+  # element type, so a list with no usable one has no kind - `{:list, nil}`
+  # would be an editor rendering a list of nothing.
   @spec kind(entry()) :: value_kind() | nil
-  defp kind(%{type: :list, item_type: item_type}), do: wrap(scalar_kind(item_type))
-  defp kind(%{type: type}), do: scalar_kind(type)
+  defp kind(%{type: :list, item_type: item_type}), do: wrap(Types.value_kind(item_type))
+  defp kind(%{type: type}), do: Types.value_kind(type)
 
   @spec wrap(kind() | nil) :: {:list, kind()} | nil
   defp wrap(nil), do: nil
   defp wrap(kind), do: {:list, kind}
-
-  # The nine, mapped onto the expression language's six. `object` and `list`
-  # fall through: neither is a kind, and a nested list is not one either.
-  @spec scalar_kind(type() | nil) :: kind() | nil
-  defp scalar_kind(:string), do: :string
-  defp scalar_kind(:integer), do: :number
-  defp scalar_kind(:decimal), do: :number
-  defp scalar_kind(:boolean), do: :boolean
-  defp scalar_kind(:date), do: :date
-  defp scalar_kind(:datetime), do: :datetime
-  defp scalar_kind(:duration), do: :duration
-  defp scalar_kind(_object_list_or_unknown), do: nil
 
   # The values an editor can render as choices, or `nil` when there is no
   # enumeration to draw.

@@ -1094,4 +1094,76 @@ defmodule StatifierDatamodel.TypesTest do
              ) == {:missing, ["authorized_at"]}
     end
   end
+
+  describe "value_kind/1 - the expression language's kind for a type expression" do
+    # The kind `path_types/1` gives for each of the nine spellings, `nil`
+    # where the path is absent from its map (ADR-0001 decision 11).
+    @kinds %{
+      "string" => :string,
+      "integer" => :number,
+      "decimal" => :number,
+      "boolean" => :boolean,
+      "datetime" => :datetime,
+      "duration" => :duration,
+      "date" => :date,
+      "object" => nil,
+      "list" => nil
+    }
+
+    # sabotage: had `value_kind(:decimal)` answer `:decimal` - this test went
+    # red on `:decimal` alone; had the catch-all answer `:string` - it went
+    # red on `:object` and `:list` (verified).
+    test "each of the nine answers the kind path_types/1 gives" do
+      assert Enum.map(@nine, &Types.value_kind(Types.scalar(&1))) ==
+               [:string, :number, :number, :boolean, :datetime, :duration, :date, nil, nil]
+    end
+
+    # sabotage: gave `value_kind/1` a `{:shape, _}` clause answering
+    # `:string` - this test went red (verified).
+    test "an inline shape has no kind" do
+      shape =
+        {:shape,
+         [
+           %{name: "patron_id", type: :string, required?: true},
+           %{name: "due_on", type: :date, required?: false}
+         ]}
+
+      assert Types.value_kind(shape) == nil
+    end
+
+    # sabotage: gave `value_kind/1` a `{:declared, _}` clause answering
+    # `:string` - this test went red (verified).
+    test "a declared name, an opaque string, unknown and nil have no kind" do
+      for type <- [{:declared, "library.loan"}, {:opaque, "Renewable"}, :unknown, nil] do
+        assert {type, nil} == {type, Types.value_kind(type)}
+      end
+    end
+
+    # sabotage: had `value_kind(:integer)` answer `:integer` - this test went
+    # red at "integer", since `path_types/1` reads its kinds from the same
+    # function (verified).
+    test "path_types/1 answers through it, for an entry and for a list's item" do
+      for spelling <- @nine do
+        index =
+          Index.index(%{
+            "scopes" => [
+              %{
+                "scope" => "local",
+                "entries" => [
+                  %{"path" => "p", "type" => spelling},
+                  %{"path" => "items", "type" => "list", "item_type" => spelling}
+                ]
+              }
+            ]
+          })
+
+        kind = Map.fetch!(@kinds, spelling)
+        list_kind = if kind, do: {:list, kind}
+
+        assert {spelling, Index.path_types(index)["p"]} == {spelling, kind}
+        assert {spelling, Index.path_types(index)["items"]} == {spelling, list_kind}
+        assert {spelling, Types.value_kind(Types.scalar(spelling))} == {spelling, kind}
+      end
+    end
+  end
 end

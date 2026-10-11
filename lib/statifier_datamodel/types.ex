@@ -23,7 +23,9 @@ defmodule StatifierDatamodel.Types do
   reachable by every other read. An inline shape has no document spelling
   and `parse/2` never returns one: it enters this module only as an argument
   a consumer hands the read check, exactly as `{:opaque, name}` does.
-  `to_string/1` prints one back for a pane.
+  `to_string/1` prints one back for a pane, and `value_kind/1` names the
+  expression language's value kind for one, the table
+  `StatifierDatamodel.Index.path_types/1` reads.
 
   ## The read check
 
@@ -283,6 +285,35 @@ defmodule StatifierDatamodel.Types do
     promised = if Map.get(member, :required?) == true, do: "", else: "?"
     name <> promised <> ": " <> to_string(type)
   end
+
+  @doc """
+  The expression language's value kind for a type expression, or `nil`.
+
+  The answer `StatifierDatamodel.Index.path_types/1` gives for an entry of
+  that type: `:string` is `:string`; `:integer` and `:decimal` are both
+  `:number`; `:boolean`, `:date`, `:datetime` and `:duration` are
+  themselves. `:object` and `:list`, a declared name, an inline shape, an
+  opaque string, `:unknown` and `nil` have no kind and answer `nil`, as the
+  same entry is absent from `path_types/1`'s map: absence means unknown, not
+  wrong.
+
+      iex> alias StatifierDatamodel.Types
+      iex> Types.value_kind(:date)
+      :date
+      iex> Types.value_kind(:decimal)
+      :number
+      iex> Types.value_kind({:declared, "library.loan"})
+      nil
+  """
+  @spec value_kind(t() | nil) :: StatifierDatamodel.Index.kind() | nil
+  def value_kind(:string), do: :string
+  def value_kind(:integer), do: :number
+  def value_kind(:decimal), do: :number
+  def value_kind(:boolean), do: :boolean
+  def value_kind(:date), do: :date
+  def value_kind(:datetime), do: :datetime
+  def value_kind(:duration), do: :duration
+  def value_kind(_object_list_or_no_kind), do: nil
 
   @doc """
   Whether a value of type `held` may be read where `expected` is required.
