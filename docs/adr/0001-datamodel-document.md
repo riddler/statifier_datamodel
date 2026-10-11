@@ -1643,3 +1643,42 @@ total over its admitted input and none raises. The `:error` answers are
 for a name the declarations do not hold, `Coverage.missing/3` for a name
 that is not a declared shape, and `Compatibility.breaks/2` for a name
 declared on neither side: in each, an empty answer would be a false claim.
+
+---
+
+## Note (2026-10-11): decision 8's worked example of 2026-09-07 is abbreviated to one scope
+
+A dated note rather than an amendment: no decision of this record changes,
+no line above is edited, and no code changes with it. It says what the
+worked example of the note of 2026-09-07 above, on decision 8 and a path
+declared as bare `object`, leaves out, because decision 3 and that example
+disagree on their face.
+
+That example is abbreviated. Its `scopes` list carries one scope map,
+`global`, where decision 3 says a document carries exactly three, in the
+order `global`, `local`, `event`. The example's subject is one entry and
+one declaration, both of which it shows; the two scopes it leaves out hold
+nothing it reads. Completed as decision 3 writes a document, it carries a
+`local` and an `event` scope map after the `global` one, each with its
+`scope`, `label` and `description` as the section `## Worked shape` spells
+them and an empty `entries` list.
+
+Nothing the example answers turns on the count, and the abbreviation
+changes no answer it gives:
+
+- `Index.index/1` reads every scope map the list holds and adds nothing for
+  a scope it does not find (`index/1` in `lib/statifier_datamodel/index.ex`
+  at `96ee79f`), and the declarations are read from the `types` key alone,
+  so the abbreviated document and the completed one index to the same
+  entries, the same order and the same declarations.
+- Each row of the example's table pairs the type the index gives
+  `cards.settlement` with an expected type, and both documents type that
+  path `:object`.
+
+The document's JSON Schema, which ADR-0002 decides, refuses the example as
+printed: its `scopes` property takes exactly three items (`minItems` and
+`maxItems` of 3 in `priv/schemas/datamodel-document.schema.json` at
+`96ee79f`). The completed document passes it. The schema is advisory, as the
+note of 2026-09-26 above says, so the refusal changes nothing this record
+decides; a reader who copies the example into a schema-checked pipeline
+copies the completed form.
