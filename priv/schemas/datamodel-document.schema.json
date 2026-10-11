@@ -46,6 +46,8 @@
       "type": "object",
       "required": ["scope", "label", "description", "entries"],
       "properties": {
+        "label": {"type": "string"},
+        "description": {"type": "string"},
         "entries": {
           "type": "array",
           "items": {"$ref": "#/definitions/entry"}
@@ -75,7 +77,9 @@
       "type": "object",
       "required": ["name", "kind", "label", "fields"],
       "properties": {
+        "name": {"type": "string"},
         "kind": {"enum": ["record", "shape"]},
+        "label": {"type": "string"},
         "fields": {
           "type": "array",
           "items": {"$ref": "#/definitions/field"}
