@@ -1682,3 +1682,46 @@ printed: its `scopes` property takes exactly three items (`minItems` and
 note of 2026-09-26 above says, so the refusal changes nothing this record
 decides; a reader who copies the example into a schema-checked pipeline
 copies the completed form.
+
+---
+
+## Note (2026-10-11): the third consequence's unknown-ness is decision 11's, not decision 8's step 1
+
+A dated note rather than an amendment: no decision of this record changes,
+no line above is edited, and no code changes with it. It says which
+unknown-ness the third bullet of `## Consequences` means, because the note
+of 2026-09-07 above, on decision 8 and a path declared as bare `object`,
+separates the two routes that bullet pairs.
+
+The bullet reads that a host with a value this record cannot type
+"declares it as `object` with no fields or leaves it undeclared, and takes
+unknown-ness for it". The unknown-ness it means is decision 11's: the path
+is absent from the projection to value kinds, and "Absence means unknown,
+not wrong". Both routes take that one, and take it alike:
+
+- `Index.path_types/1` leaves an entry typed `object` out of its map, and
+  an undeclared path has no entry to project (`path_types/1` in
+  `lib/statifier_datamodel/index.ex` at `f0b61e8`). The one exception is
+  decision 11's own: an `object` entry carrying a drawable `one_of` is
+  present with its values, because the enumeration wins over the kind.
+- `Types.value_kind/1` answers `nil` for `:object`, and for `nil`, the type
+  `Index.type/2` gives an undeclared path (`value_kind/1` in
+  `lib/statifier_datamodel/types.ex` at `f0b61e8`).
+
+It does not mean step 1 of decision 8, the read check's `:unknown`, which
+is permissive both ways. Only the undeclared route takes that one.
+`Index.type/2` answers `nil` for an undeclared path and `:object` for a
+path declared as bare `object` (`type/2` in
+`lib/statifier_datamodel/index.ex` at `f0b61e8`). `Types.satisfies/3`
+decides a held `nil` as `:unknown`, and decides a held `:object` by
+identity alone: `:identical` against `:object`, `:unknown` against an
+unknown expected type, and `:not_assignable` against any other
+(`satisfies/3` in `lib/statifier_datamodel/types.ex` at `f0b61e8`). That
+is the reading the note of 2026-09-07 records: declaring a path `object` is
+a positive claim, and a host that wants a path to be permissive leaves it
+undeclared.
+
+So the bullet's two routes are one route for the projection and two for
+the read check. The bullet stands as written for the projection, which is
+what it says a host takes; for the read check, the note of 2026-09-07
+decides.
