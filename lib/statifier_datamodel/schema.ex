@@ -35,6 +35,10 @@ defmodule StatifierDatamodel.Schema do
   The file's `$id` is keyed on the document `version` it describes, not on
   the package version. A document `version` bump ships a second file beside
   this one; until then both functions answer version 1.
+
+  The `$id` is an identifier, not a location: no request fetches it, and
+  the URL it spells does not resolve. A host reads the file through
+  `path/0` or `json/0`, never through its `$id`.
   """
 
   @relative "priv/schemas/datamodel-document.schema.json"

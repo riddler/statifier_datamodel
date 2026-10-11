@@ -7,8 +7,10 @@ defmodule StatifierDatamodel.SchemaTest do
   fixture under `test/fixtures/documents/` validates and indexes; each
   near-miss the record's worked example names is rejected by the schema and
   still indexes exactly as `StatifierDatamodel.Index.index/1` indexed it
-  before the file existed; and the nine spellings the file lists are pinned
-  to the index's closed set (decision 2).
+  before the file existed; the nine spellings the file lists are pinned
+  to the index's closed set (decision 2); and the keys ADR-0001's Decision
+  section names for each object of the document are the keys the file
+  lists for it.
   """
 
   use ExUnit.Case, async: true
@@ -345,6 +347,146 @@ defmodule StatifierDatamodel.SchemaTest do
 
       assert Validator.validate(schema, document) == :ok
       assert document |> Index.index() |> Index.type("x") == {:declared, "cards.credit_txn"}
+    end
+  end
+
+  describe "the record's keys" do
+    # ADR-0001 states the document's keys in its Decision section: decision
+    # 3 lists the document's keys as bullets and a scope's and an entry's in
+    # prose, decision 5 lists a declaration's in its one key table and a
+    # field's in prose. The test reads each from the record's text, not from
+    # a copy of it, so a key the record gains or loses without the schema
+    # file, or the file without the record, turns it red. A key one of the
+    # record's later amendments adds outside that section is outside this
+    # walk; ADR-0002 decision 9 keeps the file in step with those by review.
+    @record Path.expand("../../docs/adr/0001-datamodel-document.md", __DIR__)
+
+    defp decision_section do
+      text = File.read!(@record)
+      [_context, rest] = String.split(text, "\n## Decision\n", parts: 2)
+      [section, _rest] = String.split(rest, "\n## The contract as typespecs\n", parts: 2)
+      section
+    end
+
+    defp between(text, from, to) do
+      [_before, after_from] = String.split(text, from, parts: 2)
+      [inside, _after_to] = String.split(after_from, to, parts: 2)
+      inside
+    end
+
+    # The text between `from` and the first `to` after it, read with the
+    # record's line breaks as spaces, with each parenthesised aside dropped.
+    defp span(text, from, to) do
+      text
+      |> String.replace(~r/\s+/, " ")
+      |> between(from, to)
+      |> String.replace(~r/\([^)]*\)/, "")
+    end
+
+    defp backticked(text), do: ~r/`([^`]+)`/ |> Regex.scan(text) |> Enum.map(&List.last/1)
+
+    # A key list the record writes as "<required keys> ... optional <keys>":
+    # the keys before the first "optional" are required, the rest optional.
+    defp split_optional(text) do
+      [required, optional] = String.split(text, "optional", parts: 2)
+      %{required: backticked(required), optional: backticked(optional)}
+    end
+
+    defp record_keys do
+      section = decision_section()
+      shape = between(section, "**3. The shape.**", "An **entry**")
+
+      # Decision 3 writes each document key as a bullet that opens with the
+      # key, and the optional one says so first.
+      document =
+        ~r/^- `([^`]+)` - (optional)?/m
+        |> Regex.scan(shape)
+        |> Enum.reduce(%{required: [], optional: []}, fn
+          [_, key], acc -> Map.update!(acc, :required, &(&1 ++ [key]))
+          [_, key, "optional"], acc -> Map.update!(acc, :optional, &(&1 ++ [key]))
+        end)
+
+      scope = %{required: backticked(span(shape, "A scope carries", ".")), optional: []}
+
+      entry =
+        split_optional(
+          span(section, "An **entry** carries the four required keys", "with the meanings")
+        )
+
+      field = split_optional(span(section, "A **field** carries", ". A field's"))
+      list_field = backticked(span(section, "A `list` field carries", "under the same rule"))
+
+      %{
+        "document" => document,
+        "scope" => scope,
+        "entry" => entry,
+        "declaration" => declaration_table(section),
+        "field" => %{field | optional: field.optional ++ list_field}
+      }
+    end
+
+    # Decision 5's table: one row per declaration key, `| key | yes/no | ... |`.
+    defp declaration_table(section) do
+      section
+      |> between("**5. The `types` key", "A **field** carries")
+      |> String.split("\n", trim: true)
+      |> Enum.filter(&String.starts_with?(&1, "| `"))
+      |> Enum.reduce(%{required: [], optional: []}, fn row, acc ->
+        [_, key, required | _] = row |> String.split("|") |> Enum.map(&String.trim/1)
+        bucket = if required == "yes", do: :required, else: :optional
+        Map.update!(acc, bucket, &(&1 ++ [String.trim(key, "`")]))
+      end)
+    end
+
+    # The schema's keys per object: its `properties` and `required`. A
+    # scope's `scope` key is fixed per position of the `scopes` tuple, not
+    # under definitions/scope (ADR-0002's amendment of 2026-10-11), so the
+    # tuple's positions are read too.
+    defp schema_keys do
+      schema = JSON.decode!(Schema.json())
+      definitions = schema["definitions"]
+
+      tuple_keys =
+        for position <- schema["properties"]["scopes"]["items"],
+            part <- position["allOf"],
+            key <- Map.keys(part["properties"] || %{}),
+            uniq: true,
+            do: key
+
+      object = fn definition, extra ->
+        %{
+          keys: MapSet.new(Map.keys(definition["properties"]) ++ extra),
+          required: MapSet.new(definition["required"])
+        }
+      end
+
+      %{
+        "document" => object.(schema, []),
+        "scope" => object.(definitions["scope"], tuple_keys),
+        "entry" => object.(definitions["entry"], []),
+        "declaration" => object.(definitions["declaration"], []),
+        "field" => object.(definitions["field"], [])
+      }
+    end
+
+    # Sabotage: adding an "audience" property to definitions/entry, and
+    # another to definitions/declaration, in the schema file turned this test
+    # red; dropping "description" from definitions/scope's required list
+    # turned it red; in ADR-0001, deleting the `note` row from decision 5's
+    # table, deleting `note` from decision 3's entry sentence and adding an
+    # `owner` key to its scope sentence each turned it red; reverted each.
+    test "each object's keys in ADR-0001's Decision section are the schema's keys" do
+      record = record_keys()
+      schema = schema_keys()
+
+      assert Map.keys(record) |> Enum.sort() == Map.keys(schema) |> Enum.sort()
+
+      for {object, %{required: required, optional: optional}} <- record do
+        refute required == [], "#{object}: no required key read from the record"
+
+        assert {object, MapSet.new(required ++ optional), MapSet.new(required)} ==
+                 {object, schema[object].keys, schema[object].required}
+      end
     end
   end
 end
