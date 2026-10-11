@@ -386,8 +386,9 @@ The code it decides shipped in `statifier_datamodel` 0.6.0 (tag `v0.6.0` at
 `1408e12`), published by the release workflow on that tag's push. Every claim
 in the Amendment was verified against `main` at `1408e12`, the tag itself.
 Of the files the Amendment cites, the commits after its own touch
-`lib/statifier_datamodel/index.ex` (a new function, with `scope_entries/2`
-as the Amendment reads it), `test/statifier_datamodel/schema_test.exs` (a
+`lib/statifier_datamodel/index.ex` (its private value-kind helpers moved
+onto `StatifierDatamodel.Types.value_kind/1`, with `scope_entries/2` as the
+Amendment reads it), `test/statifier_datamodel/schema_test.exs` (a
 key-level test and its moduledoc, with the near-miss tests as the Amendment
 names them), ADR-0001 (two dated Notes, adding lines only) and
 `CHANGELOG.md` (the 0.6.0 section), and change none of what it states:
