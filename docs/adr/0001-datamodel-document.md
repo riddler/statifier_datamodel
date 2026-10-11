@@ -1476,3 +1476,170 @@ decision 6's total normalizer, nothing in this package calls the schema, and
 a document the schema rejects indexes exactly as this record says it does.
 Where the schema and this record ever differ about what a well-formed
 document is, this record is the contract and the schema is the defect.
+
+---
+
+## Note (2026-10-11): the contract as typespecs, restated as the code spells it
+
+A dated note rather than an amendment: no decision of this record changes,
+no line above is edited, and no code changes with it. It restates the
+section "The contract as typespecs" as `lib/` spells it at `18b1f76`,
+because that section, and the italic note of 2026-09-06 at its foot, are
+behind the amendments of 2026-09-06 and the code that implemented them. The
+block below supersedes both: where the section or its foot note differ from
+it, the block below is what the code declares. It was recorded by addition
+because an accepted record loses no line; the section above stays as it was
+written.
+
+Every type and spec below is a public one, read from the module's file under
+`lib/statifier_datamodel/` at `18b1f76`. A reference to another module is
+written with its full name where the file writes an alias. Private helpers
+and their specs are left out, as the section above left them out.
+
+```elixir
+defmodule StatifierDatamodel.Index do
+  @type type ::
+          :string | :integer | :decimal | :boolean
+          | :datetime | :duration | :date | :object | :list
+  @type scope :: :global | :local | :event | nil
+  @type declared :: {:declared, String.t()}
+  @type entry_type :: type() | declared()
+  @type entry :: %{
+          path: String.t(), name: String.t() | nil,
+          type: entry_type() | nil, label: String.t() | nil,
+          scope: scope(), depth: non_neg_integer(),
+          item_type: entry_type() | nil, example: term(),
+          note: String.t() | nil, one_of: [term()] | nil,
+          sensitive?: boolean()
+        }
+  @type t :: %__MODULE__{
+          version: integer(),
+          entries: %{optional(String.t()) => entry()},
+          order: [String.t()],
+          declarations: StatifierDatamodel.Declarations.t()
+        }
+  @type kind :: :string | :number | :boolean | :date | :datetime | :duration
+  @type value_kind :: kind() | {:list, kind()} | {:one_of, [term()]}
+
+  @spec index(term()) :: t() | nil
+  @spec declared_paths(t()) :: MapSet.t(String.t())
+  @spec sensitive_paths(t()) :: MapSet.t(String.t())
+  @spec datamodel(t()) ::
+          %{declared: MapSet.t(String.t()), sensitive: MapSet.t(String.t())}
+  @spec path_types(t() | term()) :: %{optional(String.t()) => value_kind()}
+  @spec entries(t()) :: [entry()]
+  @spec fetch(t(), term()) :: {:ok, entry()} | :error
+  @spec type(t(), term()) :: entry_type() | nil
+  @spec declared?(t(), term()) :: boolean()
+  @spec under(t(), term()) :: [entry()]
+end
+
+defmodule StatifierDatamodel.Declarations do
+  @type field :: %{
+          name: String.t(),
+          type: StatifierDatamodel.Types.t() | nil,
+          item_type: StatifierDatamodel.Types.t() | nil,
+          required?: boolean(),
+          label: String.t() | nil,
+          one_of: [term()] | nil
+        }
+  @type declaration :: %{
+          name: String.t(), kind: :record | :shape,
+          label: String.t() | nil, fields: [field()]
+        }
+  @type t :: %{optional(String.t()) => declaration()}
+
+  @spec from_document(term()) :: t()
+  @spec fetch(t(), term()) :: {:ok, declaration()} | :error
+end
+
+defmodule StatifierDatamodel.Types do
+  @type member :: %{name: String.t(), type: t(), required?: boolean()}
+  # A type expression: a declared name, an inline unnamed shape, one of the
+  # nine, an opaque string a consumer carries, or unknown.
+  @type t ::
+          {:declared, String.t()}
+          | {:shape, [member()]}
+          | StatifierDatamodel.Index.type()
+          | {:opaque, String.t()}
+          | :unknown
+  @type reason ::
+          :unknown | :identical | :covers
+          | {:missing, [String.t()]} | :not_assignable
+
+  @spec scalar(term()) :: t() | nil
+  @spec parse(StatifierDatamodel.Declarations.t(), term()) :: t()
+  @spec to_string(t()) :: String.t()
+  @spec satisfies?(StatifierDatamodel.Declarations.t(), t(), t()) :: boolean()
+  @spec satisfies(StatifierDatamodel.Declarations.t(), t(), t()) :: reason()
+end
+
+defmodule StatifierDatamodel.Compatibility do
+  @type break ::
+          {:field_removed, String.t()}
+          | {:type_changed, String.t()}
+          | {:made_required, String.t()}
+          | {:required_added, String.t()}
+          | {:made_optional, String.t()}
+
+  @spec breaks(StatifierDatamodel.Declarations.declaration() | nil,
+               StatifierDatamodel.Declarations.declaration() | nil) ::
+          [break()] | :error
+end
+
+defmodule StatifierDatamodel.Coverage do
+  @spec missing(StatifierDatamodel.Declarations.t(), term(), term()) ::
+          {:ok, [String.t()]} | :error
+end
+
+defmodule StatifierDatamodel.Document do
+  @spec declared_paths(term()) :: MapSet.t(String.t()) | nil
+  @spec candidates_under(term(), term()) :: [String.t()]
+  @spec declared_values(term()) :: %{optional(String.t()) => [String.t()]}
+end
+
+defmodule StatifierDatamodel.Schema do
+  @spec path() :: String.t()
+  @spec json() :: String.t()
+end
+```
+
+What moved, set against the section above, module by module:
+
+- **`StatifierDatamodel.Index`.** `declared` and `entry_type` are new types:
+  an entry's `type` and `item_type` may name a declaration, as the
+  amendment of 2026-09-06 to decision 3 allows, so `entry` carries
+  `entry_type()` where the section carried `type()`, and `type/2` answers
+  `entry_type() | nil`. `value_kind` is new and names what `path_types/1`
+  answers per path; that spec now admits any term (a value that is not an
+  index projects to the empty map) and its enumeration arm is
+  `{:one_of, [term()]}` where the section wrote `[String.t()]`.
+  `datamodel/1` is new: both projections in one map.
+- **`StatifierDatamodel.Declarations`.** `fetch/2` takes any term as its
+  second argument and answers `:error` for one that is not a string.
+- **`StatifierDatamodel.Types`.** `t()` gains the `{:shape, [member()]}`
+  arm of the amendment of 2026-09-06 that admits an inline shape, and
+  `member` is the type of one member of it. `scalar/1`, `parse/2` and
+  `to_string/1` are new: a spelling read as one of the nine, a spelling
+  read as a type expression against the document's declarations, and a
+  type expression written back as a spelling.
+- **`StatifierDatamodel.Compatibility`.** `break()` carries
+  `{:made_optional, name}` and no `{:group_added, name}`, the member the
+  amendment of 2026-09-06 to decisions 3, 5, 6, 7 and 9 swapped, in the
+  code's own order. `breaks/2` admits `nil` on either side (the name not
+  declared on that side) and answers `:error` when neither side is a
+  declaration.
+- **`StatifierDatamodel.Coverage`.** `missing/3` takes any term as the name
+  and as the map.
+- **`StatifierDatamodel.Document` and `StatifierDatamodel.Schema`.** Neither
+  module is in the section above. `Document` answers the document-level
+  reads over a decoded document, admitting it through `Index.index/1`, so a
+  caller holding a document never builds an index of its own; `Schema`
+  returns the path and the text of the JSON Schema ADR-0002 decides.
+
+The section's closing sentence is restated with it. Every function above is
+total over its admitted input and none raises. The `:error` answers are
+`Index.fetch/2` for a path the index does not hold, `Declarations.fetch/2`
+for a name the declarations do not hold, `Coverage.missing/3` for a name
+that is not a declared shape, and `Compatibility.breaks/2` for a name
+declared on neither side: in each, an empty answer would be a false claim.
