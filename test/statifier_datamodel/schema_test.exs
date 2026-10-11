@@ -223,6 +223,23 @@ defmodule StatifierDatamodel.SchemaTest do
          assert [%{required?: false}] =
                   Enum.filter(index.declarations["cards.card"].fields, &(&1.name == "last4"))
        end},
+      {"a numeric scope label", update_scope(worked, "local", &Map.put(&1, "label", 5)),
+       ["#/scopes/1"], fn index -> assert index.entries == Index.index(worked).entries end},
+      {"a numeric scope description",
+       update_scope(worked, "event", &Map.put(&1, "description", 5)), ["#/scopes/2"],
+       fn index -> assert index.entries == Index.index(worked).entries end},
+      {"a numeric declaration name",
+       update_declaration(worked, "Settleable", &Map.put(&1, "name", 5)), ["#/types/2/name"],
+       fn index ->
+         refute Map.has_key?(index.declarations, "Settleable")
+         assert index.entries == Index.index(worked).entries
+       end},
+      {"a numeric declaration label",
+       update_declaration(worked, "cards.card", &Map.put(&1, "label", 5)), ["#/types/1/label"],
+       fn index ->
+         assert index.declarations["cards.card"].label == nil
+         assert index.entries == Index.index(worked).entries
+       end},
       {"version 2", Map.put(worked, "version", 2), ["#/version"],
        fn index ->
          assert index.version == 2
@@ -236,7 +253,9 @@ defmodule StatifierDatamodel.SchemaTest do
     # "two scopes" red; dropping the `const` of the first tuple position
     # turned "scopes out of order" red; changing `sensitive?` to
     # {"type": ["boolean", "string"]} turned "a string sensitive?" red;
-    # reverted each.
+    # dropping the string type of the scope's `label`, the scope's
+    # `description`, the declaration's `name` or the declaration's `label`
+    # turned the matching "a numeric ..." row red; reverted each.
     test "each is rejected by the schema at the rule it breaks", %{schema: schema} do
       for {name, document, paths, _index} <- negatives() do
         assert {name, paths} == {name, error_paths(schema, document)}
@@ -245,7 +264,9 @@ defmodule StatifierDatamodel.SchemaTest do
 
     # Sabotage: making index/1 answer nil for a document whose version is
     # not 1 (a guard in index.ex) turned this test red at "version 2";
-    # reverted.
+    # reading a declaration's label without the string check in
+    # declarations.ex turned it red at "a numeric declaration label";
+    # reverted each.
     test "every one that is a map with a list under scopes indexes exactly as before" do
       advisory =
         Enum.filter(negatives(), fn {_name, document, _paths, _index} ->

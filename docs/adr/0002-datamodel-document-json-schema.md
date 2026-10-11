@@ -292,3 +292,82 @@ scope's `scope`, `label` and `description`, a declaration's `name` and
 what the decision says and no more. Decision 8's `$id` is an identifier that
 no request fetches, and the URL it spells does not resolve; the decision
 already says it is never fetched.
+
+## Amendment (2026-10-11): decision 5, a scope's label and description and a declaration's name and label are strings
+
+**Status: proposed (2026-10-11).** Narrowing for the schema only: a
+document whose scope `label` or `description`, or whose declaration `name`
+or `label`, is not a string was accepted by the file and is now rejected by
+it. Nothing `index/1` admits or answers changes (decision 4). No text above
+this line is edited by this section.
+
+### Context
+
+Decision 5 lists a scope's `label` and `description` and a declaration's
+`name` and `label` as required, and gives none of them a type. The file
+follows it: at `18b1f76`, `definitions/scope` in
+`priv/schemas/datamodel-document.schema.json` requires `scope`, `label`,
+`description` and `entries` and gives a type to `entries` alone, and
+`definitions/declaration` requires `name`, `kind`, `label` and `fields` and
+types `kind`, `fields` and `note`. So a scope or a declaration whose `label`
+is the number `5` validates. The flip Note above records these keys as
+untyped, as what the decision says and no more.
+
+ADR-0001 does not leave them open. Its typespecs carry a declaration's
+`name` as `String.t()` and its `label` as `String.t() | nil` (ADR-0001, "The
+contract as typespecs", `Declarations.declaration`), and
+`Declarations.from_document/1` keeps a declaration only when its `name` is a
+non-empty string and reads its `label` through a string check
+(`lib/statifier_datamodel/declarations.ex`, `declared_name/1` and
+`declaration/2`, read at `18b1f76`). A scope's `label` and `description`
+are read by nothing in the package (`index.ex`, `scope_entries/2`, read at
+`18b1f76`, reads a scope's `scope` and `entries` only), and every scope in
+ADR-0001's worked shape carries a string for both. ADR-0001's Note of
+2026-09-26 says that where the schema and that record differ about what a
+well-formed document is, the record is the contract and the schema is the
+defect.
+
+### Decision
+
+**Decision 5 is amended: a scope's `label` and `description`, and a
+declaration's `name` and `label`, are strings.** The file's
+`definitions/scope` gains `"label": {"type": "string"}` and
+`"description": {"type": "string"}` under its `properties`, and
+`definitions/declaration` gains `"name": {"type": "string"}` and
+`"label": {"type": "string"}`. The `required` lists do not change.
+
+**A scope's `scope` key is typed per position, not in `definitions/scope`,
+and stays so.** The flip Note above says decision 5 names a scope's `scope`
+without a type. That is exact for `definitions/scope` read alone, which
+gives `scope` no type of its own. It is not the whole of what the file
+says: `definitions/scope` is reached only through the three positions of
+the `scopes` tuple, and each position fixes `scope` with a `const` -
+`"global"`, `"local"` and `"event"`, in that order - so at every position
+the file accepts exactly one string for `scope` and nothing else. A type in
+`definitions/scope` would add no rejection a validator could make, and this
+amendment adds none.
+
+After it, every key the file requires carries a type, a `const` or an
+`enum`.
+
+**Decision 9 applied.** The file changes in this same request, with a
+changelog line under Fixed: the file now says what ADR-0001 already reads
+these keys as. Decision 4 stands unchanged: the package never calls the
+schema, and a document the file now rejects for one of these keys indexes
+exactly as it did before.
+
+### Consequences
+
+- A host that validates its document with the file sees a rejection for a
+  non-string scope `label` or `description` or declaration `name` or
+  `label`, where it saw none. The near-miss test in
+  `test/statifier_datamodel/schema_test.exs` ("each is rejected by the
+  schema at the rule it breaks") carries one such document per key, and
+  its sibling test ("every one that is a map with a list under scopes
+  indexes exactly as before") holds each to the index it gave before the
+  change.
+- The worked example's table above is not extended; the four documents of
+  the test are near-misses in its sense, rejected by the schema and indexed
+  as before.
+- The `$id` does not change: the file still describes document version 1
+  (decision 8), and this is a correction within it, not a version bump.
