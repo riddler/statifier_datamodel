@@ -295,7 +295,7 @@ already says it is never fetched.
 
 ## Amendment (2026-10-11): decision 5, a scope's label and description and a declaration's name and label are strings
 
-**Status: proposed (2026-10-11).** Narrowing for the schema only: a
+**Status: accepted (2026-10-11, statifier_datamodel 0.6.0).** Narrowing for the schema only: a
 document whose scope `label` or `description`, or whose declaration `name`
 or `label`, is not a string was accepted by the file and is now rejected by
 it. Nothing `index/1` admits or answers changes (decision 4). No text above
@@ -371,3 +371,50 @@ exactly as it did before.
   as before.
 - The `$id` does not change: the file still describes document version 1
   (decision 8), and this is a correction within it, not a version bump.
+
+## Note (2026-10-11): accepted - the amendment of decision 5 shipped in 0.6.0
+
+The Amendment of 2026-10-11 above is accepted as of 2026-10-11, decided by
+the conductor under a standing consent, 2026-10-11, which the operator gave
+for a record whose code has shipped in a published version and whose every
+claim verifies against `main`. Its status word moved and nothing else in the
+record did: the record's own header Status line is unchanged, and the
+header's sentence that this record does not flip its own status stays true -
+this Note records the flip.
+
+The code it decides shipped in `statifier_datamodel` 0.6.0 (tag `v0.6.0` at
+`1408e12`), published by the release workflow on that tag's push. Every claim
+in the Amendment was verified against `main` at `1408e12`, the tag itself.
+Of the files the Amendment cites, the commits after its own touch
+`lib/statifier_datamodel/index.ex` (a new function, with `scope_entries/2`
+as the Amendment reads it), `test/statifier_datamodel/schema_test.exs` (a
+key-level test and its moduledoc, with the near-miss tests as the Amendment
+names them), ADR-0001 (two dated Notes, adding lines only) and
+`CHANGELOG.md` (the 0.6.0 section), and change none of what it states:
+
+- the four string types (Decision): `definitions/scope` in
+  `priv/schemas/datamodel-document.schema.json` types `label` and
+  `description` as strings, `definitions/declaration` types `name` and
+  `label` as strings, and neither `required` list moved;
+- the scope key typed per position (Decision): `definitions/scope` gives
+  `scope` no type of its own and is referenced only from the three
+  positions of the `scopes` tuple, which fix it with the `const`s
+  `"global"`, `"local"` and `"event"`, in that order;
+- every required key typed (Decision): every key under every `required`
+  list in the file carries a `type`, a `const` or an `enum`, the scope's
+  `scope` through its position's `const`;
+- decision 9 applied: the 0.6.0 section of `CHANGELOG.md` carries the line
+  under Fixed, and no function in `lib/` calls `StatifierDatamodel.Schema`
+  (decision 4);
+- the reads the Context cites: `Declarations.from_document/1` keeps a
+  declaration only when its `name` is a non-empty string and reads its
+  `label` through a string check (`declarations.ex`, `declared_name/1` and
+  `declaration/2`), and `index.ex`'s `scope_entries/2` reads a scope's
+  `scope` and `entries` only;
+- the tests (Consequences): in `test/statifier_datamodel/schema_test.exs`,
+  "each is rejected by the schema at the rule it breaks" carries one
+  near-miss per key ("a numeric scope label", "a numeric scope
+  description", "a numeric declaration name", "a numeric declaration
+  label"), and "every one that is a map with a list under scopes indexes
+  exactly as before" holds each of them to the worked example's entries;
+- the `$id` (Consequences): unchanged, still keyed on document version 1.
