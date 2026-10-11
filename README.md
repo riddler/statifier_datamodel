@@ -33,7 +33,7 @@ Add `statifier_datamodel` to the dependencies in your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:statifier_datamodel, "~> 0.5.0"}
+    {:statifier_datamodel, "~> 0.6.0"}
   ]
 end
 ```

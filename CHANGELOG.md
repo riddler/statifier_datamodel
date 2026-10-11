@@ -12,6 +12,22 @@ the fragments are assembled
 into a version section at release. See that README for the format and for when a
 change warrants an entry at all.
 
+## [0.6.0] 2026-10-11
+
+A minor that adds one public function and types four keys in the shipped
+schema. `StatifierDatamodel.Types.value_kind/1` is new, and no existing
+signature or answer changes: `index/1` and `path_types/1` answer exactly as
+before for every document. The shipped JSON Schema stays advisory. Upgrading
+needs no migration and adds no runtime dependency.
+
+### Added
+
+- `StatifierDatamodel.Types.value_kind/1` answers the expression language's value kind for a type expression: `:string`, `:number` for `:integer` and `:decimal`, and `:boolean`, `:date`, `:datetime` and `:duration` as themselves, with `nil` for `:object`, `:list` and every type that is not one of the nine. It is the answer `StatifierDatamodel.Index.path_types/1` gives, which now reads its kinds from it and answers exactly as before.
+
+### Fixed
+
+- The shipped JSON Schema now rejects a scope whose `label` or `description` is not a string, and a declaration whose `name` or `label` is not a string; the schema stays advisory, and `index/1` admits and answers for every document exactly as before.
+
 ## [0.5.2] 2026-10-08
 
 A documentation release. The code is unchanged from 0.5.1: no module,
