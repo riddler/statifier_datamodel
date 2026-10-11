@@ -260,9 +260,12 @@ Inherited from statifier-ex unless this project records otherwise:
   ADR-0018. Dated correction and note blocks inside a moduledoc are exempt, on
   the operator ruling statifier_blocks records: the id is the only trace of
   why a paragraph moved.
-- Examples, fixtures and doctests use the family's two canonical domains -
-  credit-card processing, and a signup wizard with A/B testing - and no
-  others.
+- New examples, fixtures, doctests and teaching prose use the docs
+  manifest's example world, the library loan (`example_world: library-loan`
+  in `.claude/diataxis.md`). Existing fixtures, corpus cases and records
+  written in credit-card processing or the signup wizard with A/B testing
+  stay exactly as they are and keep passing; nothing is migrated, renamed or
+  deleted, and no new example or fixture is written in either.
 - Commit messages: title < 50 chars, simple present tense ("Adds ...",
   "Fixes ..."), body wrapped at ~72 chars. No AI attribution trailers.
 
