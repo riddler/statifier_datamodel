@@ -1811,3 +1811,6 @@ holds, and the package takes no dependency.
   `conforms/3` accepts those spellings beside the ones it was ruled to
   accept. This section does not answer it, and decision 4 is not amended
   here.
+  *[2026-10-13: ADR-0004 closes the question in its decision 7:
+  `conforms/3` accepts decision 4's spellings beside the ruled ones, and
+  decision 4 stays as written.]*

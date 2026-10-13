@@ -43,7 +43,8 @@ defmodule StatifierDatamodel do
   `StatifierDatamodel.Declarations` and the type expressions over them, with
   the read check, are `StatifierDatamodel.Types`. What is decided across two
   declarations is `StatifierDatamodel.Compatibility`, and what is decided
-  between a declaration and a map is `StatifierDatamodel.Coverage`. The
-  `events` and `sends` keys are `StatifierDatamodel.Events`.
+  between a declaration and a map is `StatifierDatamodel.Coverage`, and
+  whether a value conforms to a type is `StatifierDatamodel.Conformance`.
+  The `events` and `sends` keys are `StatifierDatamodel.Events`.
   """
 end

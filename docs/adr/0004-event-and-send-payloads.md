@@ -14,6 +14,13 @@ inline spelling at version 1 was decided by the conductor under a standing
 consent, 2026-10-13. ADR-0001 gains a dated Amendment, proposed with this
 record, for the two document keys and for decision 10's value sentence.
 
+That value conformance also accepts ADR-0001 decision 4's own spellings
+for a `decimal` and a `duration` was ruled by the operator, 2026-10-13.
+That a `nil` field type or item type reads as unknown, and that a
+`NaiveDateTime` does not conform to `datetime`, were decided by the
+conductor under a standing consent, 2026-10-13. Both are recorded in
+decision 7 by a dated edit of that day.
+
 ## Context
 
 **What a host has today.** A datamodel document declares the paths an author
@@ -188,6 +195,25 @@ declares it carries.
   or the matching Elixir struct; `object` a map; `list` a list whose items
   conform to `item_type` when it is known. A `Decimal` struct is recognised
   by its module name; the package takes no dependency on it.
+- **ADR-0001 decision 4's spellings too** *(added 2026-10-13, closing the
+  question this record carried)*. Beside the spellings above, a `decimal`
+  conforms as a string, decision 4's spelling ("`decimal` is a string"),
+  and a `duration` as an expression-language duration string, decision 4's
+  spelling (`30s`, `1h30m`). Decision 4 states no grammar for the decimal
+  string, so any string conforms. For the duration string the code follows
+  the expression language's own whole-string duration parse,
+  `Predicator.Duration.parse/1` at predicator 9.4.4: one or more
+  `<digits>(.<digits>)?<unit>` pairs, the unit one of `y`, `mo`, `w`, `d`,
+  `h`, `m`, `s` and `ms`, with no whitespace and no sign, and a fraction
+  that comes to a whole number of milliseconds. The package reproduces that
+  rule and does not call it (decision 10). Decision 4 is not amended.
+- **A `nil` type, and a `NaiveDateTime`** *(added 2026-10-13)*. A field
+  whose `type`, or a `list` field whose `item_type`, names nothing the
+  document declares is indexed `nil` (`Declarations.from_document/1`), and
+  `conforms/3` reads that `nil` as `:unknown`: it accepts anything, as a
+  name that resolves to nothing does. A `NaiveDateTime` carries no offset
+  and does not conform to `datetime`, and neither does an ISO 8601
+  date-time string without one.
 - **What accepts anything:** `:unknown`, `{:opaque, _}`, and a
   `{:declared, name}` the declarations do not hold, which is a name that
   resolves to nothing.
@@ -451,6 +477,9 @@ against `loan.lost`'s `:unknown` every value answers `:ok`.
   `duration`; a value spelled as decision 4 spells it would not conform.
   Whether conformance also accepts decision 4's spellings, or decision 4 is
   amended, is open.
+  *Closed 2026-10-13: conformance accepts decision 4's spellings beside the
+  ruled ones, and decision 4 is not amended (decision 7, "ADR-0001
+  decision 4's spellings too").*
 - **How an event entry spells `name`.** Carried from ADR-0001, about the
   `event` scope's entries, and untouched here (decision 5).
 - **An inline spelling or an `item_type` in an entry.** Not at version 1
