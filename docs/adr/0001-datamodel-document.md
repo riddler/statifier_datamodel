@@ -1730,7 +1730,7 @@ decides.
 
 ## Amendment (2026-10-13): decision 3, the document gains `events` and `sends`, and decision 10's value sentence beside value conformance
 
-**Status: proposed (2026-10-13).** Additive: it adds two optional keys to the
+**Status: accepted (2026-10-13, statifier_datamodel 0.7.1).** Additive: it adds two optional keys to the
 document and takes nothing away from a document already written. No text
 above this line is edited by this section. It flips to accepted with
 ADR-0004, once the code that reads the two keys has shipped in a published
@@ -1814,3 +1814,53 @@ holds, and the package takes no dependency.
   *[2026-10-13: ADR-0004 closes the question in its decision 7:
   `conforms/3` accepts decision 4's spellings beside the ruled ones, and
   decision 4 stays as written.]*
+
+---
+
+## Note (2026-10-13): accepted - the Amendment of 2026-10-13 on `events` and `sends` shipped in 0.7.1
+
+The Amendment of 2026-10-13 above is accepted as of 2026-10-13, with
+ADR-0004, decided by the conductor under a standing consent, 2026-10-13,
+which the operator gave for a record whose code has shipped in a published
+version and whose every claim verifies against `main`. Its status word
+moved and nothing else in the record did: the record's own header Status
+line is unchanged, and the header's sentence that this record does not flip
+its own status stays true - this Note records the flip. The condition the
+Amendment's Status paragraph names is met: the code that reads the two keys
+has shipped in a published version.
+
+The version it is accepted on is `statifier_datamodel` 0.7.1 (tag `v0.7.1`
+at `9cd6db5`), published by the release workflow on that tag's push, run
+https://github.com/riddler/statifier_datamodel/actions/runs/38447426908.
+0.7.0 shipped the code that reads the two keys first; ADR-0004 is accepted
+on 0.7.1, the first version in which its claim that every function is total
+holds, and this Amendment flips with it. Every claim in the Amendment was
+verified against `main` at `9cd6db5`, the tag itself. The one commit after
+the Amendment's own that touches this record adds the bracketed line of
+2026-10-13 under its Consequences, adding lines only. What it states holds:
+
+- the two keys (Decision (a)): `StatifierDatamodel.Events.from_document/1`
+  in `lib/statifier_datamodel/events.ex` reads the optional `events` and
+  `sends` lists, and a document without either answers both empty;
+- `version` stays at 1 (Decision (b)): no file changes the document
+  `version`, and the schema's `$id` is unchanged;
+- decisions 6, 7 and 11 untouched (Decision (c)):
+  `lib/statifier_datamodel/index.ex` and `lib/statifier_datamodel/document.ex`
+  do not read either key and have no commit after the Amendment's own, and
+  an entry whose type names nothing is listed by `Events.unresolved/1`,
+  never refused;
+- decision 10's value sentence (Decision (d)): `missing/3` in
+  `lib/statifier_datamodel/coverage.ex` has no commit after the Amendment's
+  own, and `StatifierDatamodel.Conformance.conforms/3` is the separate
+  function that checks a value against a type expression;
+- decision 2's list (Decision (e)): `Events.unresolved/1`,
+  `StatifierDatamodel.Reads.undeclared/2` and `conforms/3` each answer from
+  the document and the data a host hands in, and `mix.exs` carries no
+  runtime dependency;
+- the Consequences: the schema file gains the `events` and `sends`
+  properties in the change that lands the index, recorded by ADR-0002's
+  Note of 2026-10-13, and the key-level test in
+  `test/statifier_datamodel/schema_test.exs` reads the two keys from this
+  Amendment's Decision section and is green at `9cd6db5`; the question on
+  decision 4's spellings is closed as the bracketed line says, by ADR-0004
+  decision 7, and decision 4 is not amended.

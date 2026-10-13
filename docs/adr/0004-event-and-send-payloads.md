@@ -1,6 +1,6 @@
 # ADR-0004: Event and send payloads: the `events` and `sends` sections, a read check over reads handed in as data, and value conformance
 
-Status: proposed (2026-10-13). It flips to accepted once the code that
+Status: accepted (2026-10-13, statifier_datamodel 0.7.1). It flips to accepted once the code that
 implements it has shipped in a published version of this package; this record
 does not flip its own status.
 
@@ -554,3 +554,101 @@ against `loan.lost`'s `:unknown` every value answers `:ok`.
   `event` scope's entries, and untouched here (decision 5).
 - **An inline spelling or an `item_type` in an entry.** Not at version 1
   (decision 3); a later record may add either.
+
+## Note (2026-10-13): accepted - the events and sends sections, the read check and value conformance shipped in 0.7.1
+
+This record is accepted as of 2026-10-13, decided by the conductor under a
+standing consent, 2026-10-13, which the operator gave for a record whose
+code has shipped in a published version and whose every claim verifies
+against `main`. The status word above moved and nothing else in the record
+did. The header's sentences that the record flips once its code has shipped
+in a published version, and that it does not flip its own status, stay
+true: the condition is met, and the flip is this Note's. So is the last
+bullet under Consequences, that the record merges at proposed and flips once
+that code ships.
+
+The version it is accepted on is `statifier_datamodel` 0.7.1 (tag `v0.7.1`
+at `9cd6db5`), published by the release workflow on that tag's push, run
+https://github.com/riddler/statifier_datamodel/actions/runs/38447426908.
+0.7.0 shipped this record's modules first, but one claim did not hold
+there: the typespecs section's "Every function is total over any input and
+none raises" was false in 0.7.0, where an improper list in a list position
+made `Events.from_document/1`, `Events.unresolved/1` and
+`Reads.undeclared/2` raise. The fix to make them total, ruled by the
+operator, 2026-10-13, shipped in 0.7.1 and changed no answer for a proper
+input; from 0.7.1 the claim holds. Every claim in the record, its dated
+edits of 2026-10-13 included, was verified against `main` at `9cd6db5`, the
+tag itself:
+
+- the two keys and an entry (decisions 1 and 2):
+  `StatifierDatamodel.Events.from_document/1` reads `events`, `sends` and,
+  to resolve a type, `types`; it keeps an entry only when `name` and `type`
+  are non-empty strings, reads `label` and `note` as a string or `nil`, keeps
+  each list's order and a name's first occurrence, and indexes the two lists
+  apart (`entries/2` and `entry/2` in `lib/statifier_datamodel/events.ex`);
+- the type (decision 3): `resolve/2` there looks at the nine through
+  `Types.scalar/1` first and then the declarations, and answers `:unknown`
+  for a spelling that names neither; `Types.parse/2` still answers
+  `{:opaque, spelling}` for such a spelling, and the index still types a
+  scope entry `nil`; a `type` that is not a string drops the entry, and an
+  entry typed `list` carries no item type;
+- reported, never refused (decision 4): `Events.unresolved/1` answers the
+  entries typed `:unknown`, each section in list order, and nothing else
+  changes;
+- not declared paths (decision 5): `lib/statifier_datamodel/index.ex` and
+  `lib/statifier_datamodel/document.ex` do not read either key, and
+  neither file, `types.ex`, `declarations.ex` nor `coverage.ex` has a commit
+  after `fd86ace`, the SHA the Context reads;
+- the read check (decision 6, its seven rules, "The answer" and "Four
+  readings"): `StatifierDatamodel.Reads.undeclared/2` in
+  `lib/statifier_datamodel/reads.ex`, with the three reasons as its
+  `reason` type spells them, the system fields as its `@system_fields`, the
+  token-prefix match with `*` and the `.*` reading in `matching/2`,
+  `descriptor/1` and `matches?/2`, the payload descent in `descend/4` and
+  `step/3` (a `nil` or unknown type declaring whatever lies beneath it, a
+  bare `object` and the other scalars declaring no member), the declared-path
+  rule in `root_reasons/2`, and `[]` for an input `Index.index/1` does not
+  admit; the how-to guide `docs/guides/check-chart-reads.md` shows the
+  composition with the expression language's `references/1`;
+- value conformance (decision 7 and its dated bullets):
+  `StatifierDatamodel.Conformance.conforms/3` in
+  `lib/statifier_datamodel/conformance.ex`, with the scalars as `accepts?/2`
+  reads them, a `Decimal` struct by its module name, the string spellings of
+  `decimal` and `duration`, and `nil`, `:unknown`, an opaque string and an
+  undeclared name accepting anything; its duration-string pattern is the
+  whole-string and unit-pair pattern of `Predicator.Duration.parse/1` at
+  predicator `v9.4.4`, with the same whole-millisecond rule and no call to
+  it;
+- the typespecs: `Events`, `Reads` and `Conformance` declare the types and
+  specs the section states, `Reads.reason()` as the block of 2026-10-13
+  closes it; and every function is total: `Events.from_document/1`,
+  `Events.unresolved/1`, `Events.fetch/3` and `Reads.undeclared/2` read an
+  improper list in any list position as a value that is not a list, as
+  `conforms/3` already did, and an improper `events`, `sends`, `types`,
+  `fields`, `scopes`, `entries`, reads list, read `path` or read `events`
+  was each run against the code at `9cd6db5` without a raise;
+- advisory, `version`, no dependency (decisions 8 to 10): no function in
+  the three modules refuses a document; the schema's `$id` and the document
+  `version` are unchanged; `mix.exs` carries no runtime dependency, and the
+  one dependency 0.7.0 added, `stream_data`, is `only: :test`;
+- the Consequences: the schema file's `events` and `sends` properties and
+  its `payload_entry` definition, ADR-0002's Note of 2026-10-13, and the
+  0.7.0 section of `CHANGELOG.md`, which carries the sentence that a
+  document's own `events` or `sends` key is read from now on.
+
+The worked example was run against the code at `9cd6db5`: the index, the
+declared paths, each row of the read check with the five answers the block
+of 2026-10-13 lists, and each conformance answer come out as the record
+states them.
+
+Two sentences written before the record's dated edits of 2026-10-13 are
+superseded by those edits, and stand as they were written: decision 6's
+closing sentence that the vocabulary saying why a read is reported "is not
+decided here" is closed by decision 6, "The answer" (added 2026-10-13); and
+the placeholder comment on `Reads.reason()` in the typespecs is closed by
+the block marked "Added 2026-10-13" beneath it.
+
+The Context's "No function checks a value against a type, and none checks
+a path a chart reads against an event's payload" is not superseded: it is a
+dated statement of the package as it stood at `fd86ace`, before this
+record's code, and it stays true of that SHA.
