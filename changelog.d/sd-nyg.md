@@ -1,5 +1,0 @@
-### Added
-
-- `StatifierDatamodel.Events` reads two new optional top-level keys of the datamodel document, `events` and `sends`: lists of entries carrying a `name`, a payload `type` (one of the nine or a declared record or shape), and an optional `label` and `note`, indexed in list order with the first occurrence of a name kept, through `from_document/1` and `fetch/3`; an entry missing `name` or `type` is dropped, and an entry whose type names nothing declared is typed `:unknown` and listed by `unresolved/1`, never refused.
-- The JSON Schema gains the optional `events` and `sends` properties, each an array of entries requiring a non-empty `name` and `type`.
-- A document carrying a top-level `events` or `sends` key (a host's own annotation until now) is read by the new index; nothing `Index`, `Document`, `Declarations`, `Types` or `Coverage` answers changes, but a host whose own annotation used either name should rename that key, or rewrite it as the entries above, since the JSON Schema now rejects either key when it is not a list of such entries.
