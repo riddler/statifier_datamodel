@@ -78,7 +78,7 @@ defmodule StatifierDatamodel.MixProject do
           ~r/^StatifierDatamodel\.(Types|Declarations)($|\.)/
         ],
         "Compatibility and coverage": [
-          ~r/^StatifierDatamodel\.(Compatibility|Coverage)($|\.)/
+          ~r/^StatifierDatamodel\.(Compatibility|Coverage|Conformance)($|\.)/
         ]
       ],
       skip_undefined_reference_warnings_on: ["CHANGELOG.md"]
@@ -121,6 +121,10 @@ defmodule StatifierDatamodel.MixProject do
       # 10). Test-only: the package never validates a document, so this is
       # not a runtime dependency and lands in no host's tree.
       {:ex_json_schema, "~> 0.11", only: :test, runtime: false},
+      # The generators the value-conformance property tests draw from
+      # (ADR-0004 decision 7). Test-only: conformance takes no dependency,
+      # so this is not a runtime dependency and lands in no host's tree.
+      {:stream_data, "~> 1.1", only: :test, runtime: false},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false}
     ]
   end

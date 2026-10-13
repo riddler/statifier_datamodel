@@ -87,6 +87,7 @@ in the record is the one-key fix.
 - Do
   - [Check a redefined type before you ship it](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Compatibility.html): every way the new declaration narrows the old one, in the API reference until a guide page exists.
   - [Find the required fields a value leaves unfilled](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Coverage.html): a map checked against a shape, in the API reference until a guide page exists.
+  - [Check a payload against its type](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Conformance.html): every place a value breaks a record, a shape or a scalar, with its path, in the API reference until a guide page exists.
   - [Validate a document before you index it](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Schema.html): where the JSON Schema is and what it rejects, in the API reference until a guide page exists. The schema's `$id` is an identifier and does not resolve to a URL: read the file from the installed package.
   - [Upgrade a host](docs/upgrading.md): what a host changes for each minor from 0.4 on.
 - Look up
