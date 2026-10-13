@@ -40,7 +40,7 @@ defmodule StatifierDatamodel.Conformance do
   | `:datetime` | an ISO 8601 date-time string carrying an offset, or a `DateTime` |
   | `:duration` | an ISO 8601 duration string, an expression-language duration string, or a `Duration` |
   | `:object` | a map |
-  | `:list` | a list, whose items conform to the field's `item_type` when it is known |
+  | `:list` | a proper list, whose items conform to the field's `item_type` when it is known |
   | a declared record or shape, or an inline shape | a map whose fields conform, below |
   | `:unknown`, `{:opaque, _}`, a declared name the declarations do not hold, or `nil` | anything |
 
@@ -189,15 +189,21 @@ defmodule StatifierDatamodel.Conformance do
   @spec fields(map(), term()) :: {:ok, [field()]} | :none
   defp fields(declarations, {:declared, name}) when is_binary(name) do
     case Map.fetch(declarations, name) do
-      {:ok, %{fields: fields}} when is_list(fields) -> {:ok, normalize(fields)}
+      {:ok, %{fields: fields}} -> field_list(fields)
       _not_declared -> :none
     end
   end
 
-  defp fields(_declarations, {:shape, members}) when is_list(members),
-    do: {:ok, normalize(members)}
+  defp fields(_declarations, {:shape, members}), do: field_list(members)
 
   defp fields(_declarations, _not_a_declaration_or_shape), do: :none
+
+  # Fields are read only from a proper list; anything else, an improper list
+  # included, is outside the grammar and checks nothing.
+  @spec field_list(term()) :: {:ok, [field()]} | :none
+  defp field_list(fields) do
+    if proper_list?(fields), do: {:ok, normalize(fields)}, else: :none
+  end
 
   @spec check_fields(map(), term(), [field()], term(), list()) :: [mismatch()]
   defp check_fields(declarations, _type, fields, value, at) when is_map(value) do
@@ -215,14 +221,19 @@ defmodule StatifierDatamodel.Conformance do
 
   @spec check_scalar(map(), term(), term(), term(), list()) :: [mismatch()]
   defp check_scalar(declarations, :list, item_type, value, at) when is_list(value) do
-    if known?(item_type) do
-      value
-      |> Enum.with_index()
-      |> Enum.flat_map(fn {item, index} ->
-        check(declarations, item_type, nil, item, [index | at])
-      end)
-    else
-      []
+    cond do
+      not proper_list?(value) ->
+        [{Enum.reverse(at), {:expected, :list}}]
+
+      known?(item_type) ->
+        value
+        |> Enum.with_index()
+        |> Enum.flat_map(fn {item, index} ->
+          check(declarations, item_type, nil, item, [index | at])
+        end)
+
+      true ->
+        []
     end
   end
 
@@ -251,6 +262,11 @@ defmodule StatifierDatamodel.Conformance do
   defp accepts?(:object, value), do: is_map(value)
   defp accepts?(:list, value), do: is_list(value)
   defp accepts?(_unknown_or_outside_the_grammar, _value), do: true
+
+  # A list a decoded JSON value can be: an improper list, `[1 | 2]`, is a
+  # term no decoder produces, and it is not a `list`.
+  @spec proper_list?(term()) :: boolean()
+  defp proper_list?(value), do: is_list(value) and not List.improper?(value)
 
   @spec decimal?(term()) :: boolean()
   defp decimal?(%{__struct__: Decimal}), do: true
