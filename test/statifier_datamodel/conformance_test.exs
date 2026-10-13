@@ -345,6 +345,25 @@ defmodule StatifierDatamodel.ConformanceTest do
                7
              ) == :ok
     end
+
+    # Sabotage: answering nothing for an improper list value turned this test
+    # red at ["xs"]; reading an improper member list as one required member
+    # turned it red at the shape; reverted each.
+    test "an improper list is not a list, and an improper member list checks nothing" do
+      xs = {:shape, [%{name: "xs", type: :list, item_type: :integer, required?: true}]}
+
+      assert Conformance.conforms(%{}, xs, %{"xs" => [1 | 2]}) ==
+               {:error, [{["xs"], {:expected, :list}}]}
+
+      assert Conformance.conforms(%{}, :list, [1 | 2]) == {:error, [{[], {:expected, :list}}]}
+      assert Conformance.conforms(%{}, {:shape, [1 | 2]}, %{}) == :ok
+
+      assert Conformance.conforms(
+               %{"loans.odd" => %{fields: [1 | 2]}},
+               {:declared, "loans.odd"},
+               %{}
+             ) == :ok
+    end
   end
 
   describe "the two answers beside it, unchanged" do
@@ -466,7 +485,9 @@ defmodule StatifierDatamodel.ConformanceTest do
       check all(
               {declarations, name, _fields} <- declaration("shape"),
               value <-
-                map_of(string(:alphanumeric, max_length: 3), one_of([constant(nil), integer()]))
+                map_of(string(:alphanumeric, max_length: 3), one_of([constant(nil), integer()]),
+                  max_length: 6
+                )
             ) do
         {:ok, coverage} = Coverage.missing(declarations, name, value)
 
