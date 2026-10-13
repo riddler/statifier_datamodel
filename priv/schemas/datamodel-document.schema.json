@@ -25,6 +25,16 @@
       "description": "Named record and shape declarations.",
       "type": "array",
       "items": {"$ref": "#/definitions/declaration"}
+    },
+    "events": {
+      "description": "The events a chart receives, by name, and the type of each one's payload (ADR-0004).",
+      "type": "array",
+      "items": {"$ref": "#/definitions/payload_entry"}
+    },
+    "sends": {
+      "description": "The events a chart sends, by name, and the type of the payload each carries (ADR-0004).",
+      "type": "array",
+      "items": {"$ref": "#/definitions/payload_entry"}
     }
   },
   "definitions": {
@@ -98,6 +108,17 @@
         "label": {"type": "string"},
         "note": {"type": "string"},
         "one_of": {"type": "array"}
+      }
+    },
+    "payload_entry": {
+      "description": "One entry of events or sends. type is one of the nine closed spellings or the name of a declaration under types, as an entry's type is; a spelling that names neither is reported by the package, never refused.",
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "type": {"type": "string", "minLength": 1},
+        "label": {"type": "string"},
+        "note": {"type": "string"}
       }
     }
   }

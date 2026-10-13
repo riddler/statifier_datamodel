@@ -8,9 +8,10 @@ defmodule StatifierDatamodel.SchemaTest do
   near-miss the record's worked example names is rejected by the schema and
   still indexes exactly as `StatifierDatamodel.Index.index/1` indexed it
   before the file existed; the nine spellings the file lists are pinned
-  to the index's closed set (decision 2); and the keys ADR-0001's Decision
-  section names for each object of the document are the keys the file
-  lists for it.
+  to the index's closed set (decision 2); the keys ADR-0001's Decision
+  section names for each object of the document, with the two keys its
+  Amendment of 2026-10-13 adds, are the keys the file lists for it; and
+  ADR-0004's worked example validates once its nameless entry is gone.
   """
 
   use ExUnit.Case, async: true
@@ -18,6 +19,7 @@ defmodule StatifierDatamodel.SchemaTest do
   doctest StatifierDatamodel.Schema
 
   alias ExJsonSchema.Validator
+  alias StatifierDatamodel.Events
   alias StatifierDatamodel.Index
   alias StatifierDatamodel.Schema
 
@@ -83,6 +85,14 @@ defmodule StatifierDatamodel.SchemaTest do
 
   defp update_declaration(document, name, fun) do
     Map.update!(document, "types", &update_where(&1, "name", name, fun))
+  end
+
+  # The worked shape with one events entry and one sends entry, each whole.
+  defp with_sections do
+    Map.merge(worked(), %{
+      "events" => [%{"name" => "loan.renewed", "type" => "object"}],
+      "sends" => [%{"name" => "patron.due_soon", "type" => "object", "label" => "Due soon"}]
+    })
   end
 
   describe "the reader" do
@@ -246,7 +256,18 @@ defmodule StatifierDatamodel.SchemaTest do
        fn index ->
          assert index.version == 2
          assert index.entries == Index.index(worked).entries
-       end}
+       end},
+      {"events not a list", Map.put(with_sections(), "events", %{"loan.renewed" => "object"}),
+       ["#/events"], fn index -> assert index == Index.index(worked) end},
+      {"an events entry missing name",
+       update_in(with_sections()["events"], &[%{"type" => "object"} | &1]), ["#/events/0"],
+       fn index -> assert index == Index.index(worked) end},
+      {"an empty sends name",
+       update_in(with_sections()["sends"], &[%{"name" => "", "type" => "object"} | &1]),
+       ["#/sends/0/name"], fn index -> assert index == Index.index(worked) end},
+      {"a numeric sends type",
+       update_in(with_sections()["sends"], &[%{"name" => "patron.overdue", "type" => 7} | &1]),
+       ["#/sends/0/type"], fn index -> assert index == Index.index(worked) end}
     ]
   end
 
@@ -257,7 +278,10 @@ defmodule StatifierDatamodel.SchemaTest do
     # {"type": ["boolean", "string"]} turned "a string sensitive?" red;
     # dropping the string type of the scope's `label`, the scope's
     # `description`, the declaration's `name` or the declaration's `label`
-    # turned the matching "a numeric ..." row red; reverted each.
+    # turned the matching "a numeric ..." row red; dropping the minLength of
+    # definitions/payload_entry's `name`, dropping `name` from its required
+    # list, typing `events` as an array or an object, and dropping the
+    # string type of its `type` each turned this test red; reverted each.
     test "each is rejected by the schema at the rule it breaks", %{schema: schema} do
       for {name, document, paths, _index} <- negatives() do
         assert {name, paths} == {name, error_paths(schema, document)}
@@ -350,16 +374,56 @@ defmodule StatifierDatamodel.SchemaTest do
     end
   end
 
+  describe "ADR-0004's worked example" do
+    # The record's `## Worked example` JSON block, read from the record
+    # rather than copied, so the example and the file cannot drift apart.
+    @adr_0004 Path.expand("../../docs/adr/0004-event-and-send-payloads.md", __DIR__)
+
+    defp adr_0004_example do
+      [_before, after_heading] = String.split(File.read!(@adr_0004), "\n## Worked example\n")
+      [_prose, after_fence] = String.split(after_heading, "```json\n", parts: 2)
+      [json, _rest] = String.split(after_fence, "\n```\n", parts: 2)
+      JSON.decode!(json)
+    end
+
+    # Sabotage: dropping `name` from definitions/payload_entry's required
+    # list in the schema file turned this test red (the nameless entry
+    # validated); typing its `label` as an integer turned it red (the whole
+    # example failed); reverted each.
+    test "validates without its nameless entry, is rejected with it, and indexes the same",
+         %{schema: schema} do
+      example = adr_0004_example()
+
+      assert [%{"label" => "No name"} = nameless] =
+               Enum.reject(example["events"], &Map.has_key?(&1, "name"))
+
+      whole = update_in(example["events"], &List.delete(&1, nameless))
+
+      assert Validator.validate(schema, whole) == :ok
+      assert error_paths(schema, example) == ["#/events/4"]
+      assert Index.index(example) == Index.index(whole)
+      assert Events.from_document(example) == Events.from_document(whole)
+    end
+  end
+
   describe "the record's keys" do
     # ADR-0001 states the document's keys in its Decision section: decision
     # 3 lists the document's keys as bullets and a scope's and an entry's in
     # prose, decision 5 lists a declaration's in its one key table and a
     # field's in prose. The test reads each from the record's text, not from
     # a copy of it, so a key the record gains or loses without the schema
-    # file, or the file without the record, turns it red. A key one of the
-    # record's later amendments adds outside that section is outside this
-    # walk; ADR-0002 decision 9 keeps the file in step with those by review.
+    # file, or the file without the record, turns it red. The record's
+    # Amendment of 2026-10-13 adds two document keys as bullets in decision
+    # 3's own form, and they are read from that Amendment's Decision section;
+    # the keys of an `events` or `sends` entry are ADR-0004 decision 2's key
+    # table, read the same way as decision 5's. A key any other amendment
+    # adds outside these sections is outside this walk; ADR-0002 decision 9
+    # keeps the file in step with those by review.
     @record Path.expand("../../docs/adr/0001-datamodel-document.md", __DIR__)
+    @payload_record Path.expand("../../docs/adr/0004-event-and-send-payloads.md", __DIR__)
+
+    # The heading of the Amendment that adds `events` and `sends`.
+    @sections_amendment "\n## Amendment (2026-10-13): decision 3, the document gains `events` and `sends`"
 
     defp decision_section do
       text = File.read!(@record)
@@ -392,19 +456,31 @@ defmodule StatifierDatamodel.SchemaTest do
       %{required: backticked(required), optional: backticked(optional)}
     end
 
+    # The Amendment's own Decision section, up to its Consequences.
+    defp amendment_decision do
+      @record
+      |> File.read!()
+      |> between(@sections_amendment, "\n### Consequences\n")
+      |> between("\n### Decision\n", "**(b)")
+    end
+
+    # Decision 3 writes each document key as a bullet that opens with the
+    # key, and the optional one says so first.
+    defp key_bullets(text, acc) do
+      ~r/^- `([^`]+)` - (optional)?/m
+      |> Regex.scan(text)
+      |> Enum.reduce(acc, fn
+        [_, key], acc -> Map.update!(acc, :required, &(&1 ++ [key]))
+        [_, key, "optional"], acc -> Map.update!(acc, :optional, &(&1 ++ [key]))
+      end)
+    end
+
     defp record_keys do
       section = decision_section()
       shape = between(section, "**3. The shape.**", "An **entry**")
 
-      # Decision 3 writes each document key as a bullet that opens with the
-      # key, and the optional one says so first.
       document =
-        ~r/^- `([^`]+)` - (optional)?/m
-        |> Regex.scan(shape)
-        |> Enum.reduce(%{required: [], optional: []}, fn
-          [_, key], acc -> Map.update!(acc, :required, &(&1 ++ [key]))
-          [_, key, "optional"], acc -> Map.update!(acc, :optional, &(&1 ++ [key]))
-        end)
+        key_bullets(amendment_decision(), key_bullets(shape, %{required: [], optional: []}))
 
       scope = %{required: backticked(span(shape, "A scope carries", ".")), optional: []}
 
@@ -420,15 +496,19 @@ defmodule StatifierDatamodel.SchemaTest do
         "document" => document,
         "scope" => scope,
         "entry" => entry,
-        "declaration" => declaration_table(section),
-        "field" => %{field | optional: field.optional ++ list_field}
+        "declaration" => key_table(section, "**5. The `types` key", "A **field** carries"),
+        "field" => %{field | optional: field.optional ++ list_field},
+        "payload_entry" =>
+          key_table(File.read!(@payload_record), "**2. An entry: `name`", "**3. `type`")
       }
     end
 
-    # Decision 5's table: one row per declaration key, `| key | yes/no | ... |`.
-    defp declaration_table(section) do
-      section
-      |> between("**5. The `types` key", "A **field** carries")
+    # A key table: one row per key, `| key | yes/no | ... |`, between two
+    # markers - ADR-0001 decision 5's for a declaration, ADR-0004 decision
+    # 2's for an entry of `events` or `sends`.
+    defp key_table(text, from, to) do
+      text
+      |> between(from, to)
       |> String.split("\n", trim: true)
       |> Enum.filter(&String.starts_with?(&1, "| `"))
       |> Enum.reduce(%{required: [], optional: []}, fn row, acc ->
@@ -465,7 +545,8 @@ defmodule StatifierDatamodel.SchemaTest do
         "scope" => object.(definitions["scope"], tuple_keys),
         "entry" => object.(definitions["entry"], []),
         "declaration" => object.(definitions["declaration"], []),
-        "field" => object.(definitions["field"], [])
+        "field" => object.(definitions["field"], []),
+        "payload_entry" => object.(definitions["payload_entry"], [])
       }
     end
 
@@ -474,7 +555,10 @@ defmodule StatifierDatamodel.SchemaTest do
     # red; dropping "description" from definitions/scope's required list
     # turned it red; in ADR-0001, deleting the `note` row from decision 5's
     # table, deleting `note` from decision 3's entry sentence and adding an
-    # `owner` key to its scope sentence each turned it red; reverted each.
+    # `owner` key to its scope sentence each turned it red; adding an
+    # "audience" property to definitions/payload_entry turned it red, and so
+    # did deleting the `sends` bullet from the Amendment of 2026-10-13;
+    # reverted each.
     test "each object's keys in ADR-0001's Decision section are the schema's keys" do
       record = record_keys()
       schema = schema_keys()

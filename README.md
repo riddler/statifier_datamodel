@@ -94,6 +94,7 @@ in the record is the one-key fix.
   - [The document shorthand](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Document.html): declared paths, candidates under a prefix and declared values, straight from a document.
   - [Declarations](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Declarations.html): the document's named records and shapes, indexed by name.
   - [Types and the read check](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Types.html): the type expressions, inline shapes, and every answer `satisfies/3` gives.
+  - [Events and sends](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Events.html): the events a chart receives and sends, the type of each payload, and the entries whose type names nothing.
   - [The changelog](https://github.com/riddler/statifier_datamodel/blob/main/CHANGELOG.md): what changed in each version.
 - Understand
   - [Why the family shares one type registry](docs/explanation/why-one-type-registry.md): why the block editor and the expression editor read the document through one package that depends on neither, and what that costs.
