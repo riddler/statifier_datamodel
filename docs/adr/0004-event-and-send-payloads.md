@@ -77,13 +77,17 @@ read in order and a repeated `name` keeps its first occurrence, as `types`
 does. The two lists are separate: a name may appear in both, and an entry of
 one never shadows an entry of the other.
 
-**3. `type` is a spelling, resolved as an entry's `type` is.** It is one of
-ADR-0001 decision 4's nine (`object` and `list` among them) or the `name` of
-a record or shape the `types` key declares. The closed set is looked at
+**3. `type` is a spelling, looked up in a scope entry's order.** It is one
+of ADR-0001 decision 4's nine (`object` and `list` among them) or the `name`
+of a record or shape the `types` key declares. The closed set is looked at
 first, then the declarations, which is the resolution order ADR-0001's
 Amendment of 2026-09-06 gives a scope entry's `type`. A spelling that names
-neither resolves to `:unknown`, as every undeclared name does in this
-package: unknown, not wrong.
+neither is normalized to `:unknown`: unknown, not wrong. That is this
+section's own outcome, not one an existing reader gives, since for such a
+spelling `Types.parse/2` answers `{:opaque, spelling}` and the index types a
+scope entry `nil`; it is the normalization `Types.satisfies/3` gives a
+declared name the declarations do not hold (`parse/2` and `satisfies/3` in
+`lib/statifier_datamodel/types.ex` at `fd86ace`).
 
 At version 1 there is no inline spelling: `type` is a string, never a map
 spelling a shape, which is what `Types.parse/2` already reads and the reason
