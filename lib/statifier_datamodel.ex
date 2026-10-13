@@ -7,8 +7,10 @@ defmodule StatifierDatamodel do
   author writes conditions against: three scopes - `global`, `local`,
   `event` - each carrying entries with a `name`, an absolute dotted `path`, a
   `type` and a `label`, plus a `types` key of named record and shape
-  declarations. This package is the reader of that document and the home of
-  every question that can be answered from the document alone:
+  declarations, and the optional `events` and `sends` keys declaring, per
+  event name, the type of a payload a chart receives or sends. This package
+  is the reader of that document and the home of every question that can be
+  answered from the document alone:
 
     * the path/type index over an admitted document, and its projection to
       the declared-path set;
@@ -17,6 +19,8 @@ defmodule StatifierDatamodel do
       required set;
     * compatibility of a redefined declaration against the one it replaces;
     * required-field coverage of a map against a shape;
+    * the events a chart receives and sends, each with its payload's type,
+      and the entries whose type names nothing the document declares;
     * the projection of the index to per-path value kinds an expression
       editor consumes.
 
@@ -39,6 +43,7 @@ defmodule StatifierDatamodel do
   `StatifierDatamodel.Declarations` and the type expressions over them, with
   the read check, are `StatifierDatamodel.Types`. What is decided across two
   declarations is `StatifierDatamodel.Compatibility`, and what is decided
-  between a declaration and a map is `StatifierDatamodel.Coverage`.
+  between a declaration and a map is `StatifierDatamodel.Coverage`. The
+  `events` and `sends` keys are `StatifierDatamodel.Events`.
   """
 end

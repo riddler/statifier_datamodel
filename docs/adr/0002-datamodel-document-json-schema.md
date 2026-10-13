@@ -419,3 +419,40 @@ names them), ADR-0001 (two dated Notes, adding lines only) and
   label"), and "every one that is a map with a list under scopes indexes
   exactly as before" holds each of them to the worked example's entries;
 - the `$id` (Consequences): unchanged, still keyed on document version 1.
+
+## Note (2026-10-13): decision 9 applied - the file gains `events` and `sends`
+
+ADR-0001's Amendment of 2026-10-13 adds two optional keys to the document,
+`events` and `sends`, and ADR-0004 decides their entries; both are on `main`
+at `845070d`, at proposed. Decision 9 changes the file when a record
+amendment changes what the document admits, in the same request as the
+amendment's code, with a changelog line. The request that lands `StatifierDatamodel.Events`, the
+reader of the two keys, changes the file, and this Note records what it
+says. Nothing in this record's decisions changes: decision 5 reads the
+document's keys from ADR-0001 "and the amendments that edit them", and this
+is one of those.
+
+- **The document** gains two optional properties, `events` and `sends`, each
+  an array of entries; `required` stays `version` and `scopes`.
+- **An entry of either key** is a new definition, `payload_entry`. It
+  requires `name` and `type`, each a string of at least one character, which
+  is ADR-0004 decision 2's "a non-empty string"; its optional keys are
+  `label` and `note`, each a string. `type` is typed as a string beside the
+  nine, on decision 6's reasoning: a draft-07 schema cannot check a name
+  against the document's own `types` list, and the package reports an entry
+  whose type names nothing rather than refusing it (ADR-0004 decision 4).
+- **Every object stays open** (decision 7): neither the document nor the new
+  definition sets `additionalProperties`.
+- **The `$id` does not change** (decision 8): both keys are additive, the
+  document `version` stays at `1` (ADR-0001 decision 13), and the file still
+  describes version 1.
+- **Decision 4 holds.** The package never calls the schema, and a document
+  the file rejects for one of the two keys indexes as it did before.
+- **The changelog line** is the fragment the same request adds, under Added.
+
+The key-level test in `test/statifier_datamodel/schema_test.exs`, which
+reads each object's keys from ADR-0001's Decision section, reads the two
+document keys from that Amendment's Decision section, where they are
+bullets in decision 3's own form, and an entry's keys from ADR-0004 decision
+2's key table, so a key either record gains without the file, or the file
+without the record, turns it red.
