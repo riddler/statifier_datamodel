@@ -1725,3 +1725,89 @@ So the bullet's two routes are one route for the projection and two for
 the read check. The bullet stands as written for the projection, which is
 what it says a host takes; for the read check, the note of 2026-09-07
 decides.
+
+---
+
+## Amendment (2026-10-13): decision 3, the document gains `events` and `sends`, and decision 10's value sentence beside value conformance
+
+**Status: proposed (2026-10-13).** Additive: it adds two optional keys to the
+document and takes nothing away from a document already written. No text
+above this line is edited by this section. It flips to accepted with
+ADR-0004, once the code that reads the two keys has shipped in a published
+version.
+
+The two keys and value conformance were ruled by the operator, 2026-10-12;
+ADR-0004 records the rulings and is proposed with this section.
+
+### Context
+
+Decision 3 names the document's keys: `version`, `scopes` and the optional
+`types`. ADR-0004 adds two more, `events` and `sends`, each an optional list
+declaring per event name the type of a payload. A key the document carries
+is decision 3's to name, so the two are named here as well as there.
+
+Decision 10 closes on a sentence about values, written of `missing/3`: "this
+record does not check the value's type against the field's, because a map
+here is data a host handed in and the type of a value is the expression
+language's question".
+ADR-0004 decision 7 adds `conforms/3`, which does check a value against a
+type. The two have to be read side by side.
+
+### Decision
+
+**(a) Decision 3 gains two optional keys.** Beside the three it names, a
+datamodel document may carry:
+
+- `events` - optional; a list of entries, each naming an event a chart
+  receives and the type of its payload (ADR-0004 decisions 1-5).
+- `sends` - optional; a list of entries, each naming an event a chart sends
+  and the type of the payload it carries (ADR-0004 decisions 1-5).
+
+A document without either key declares no events or no sends, which is the
+state every document written before this section is in.
+
+**(b) Decision 13 holds: `version` stays at 1.** Both keys are additive. A
+consumer that ignores keys it does not know misreads nothing, which is the
+test decision 13 applies, and it does not fire.
+
+**(c) Decisions 6, 7 and 11 are untouched.** `index/1` admits and answers as
+it does today and does not read the two keys; they contribute no path to the
+declared-path set, as `types` contributes none (decision 7), and nothing to
+`path_types/1`. An entry of either key whose type names nothing is reported
+by ADR-0004's fact query, never refused, which is decision 6's posture.
+
+**(d) Decision 10's value sentence is about `missing/3`.** It stands as
+written for that function: `missing/3` checks presence and never a value's
+type, and every answer it gives is unchanged. It no longer describes the
+package as a whole. ADR-0004 decision 7's `conforms/3` is the package's check
+of a value against a type expression, a separate function with its own
+answer; what a value of each of decision 4's types is to `conforms/3` is
+decided there. "The type of a value is the expression language's question"
+stays true of a value an expression computes; a payload map a host hands
+in, checked against a type the document declares, is a question about the
+document, which is what decision 2 says this package answers.
+
+**(e) Decision 2's list, read beside ADR-0004.** The package now also answers
+which `events` and `sends` entries name no type, whether reads a host hands
+in as data are declared, and whether a value conforms to a type. Each is
+answered from the document and data a host hands in, returns a fact, and
+needs no block tree, no chart and no expression parser: decision 2's seam
+holds, and the package takes no dependency.
+
+### Consequences
+
+- **A document carrying either key indexes as it does today.** Every answer
+  this record's functions give is unchanged; ADR-0004's functions read the
+  two keys.
+- **The JSON Schema follows in the change that reads the keys.** ADR-0002
+  decision 9 changes the schema file when an amendment changes what the
+  document admits, in the same request as the amendment's code. This section
+  changes no code, so the file gains the two properties with the change that
+  lands ADR-0004's index, and that change brings the schema's keys and this
+  record's into step.
+- **ADR-0004 decision 7 and decision 4 are carried side by side.** Decision
+  4 spells a `decimal` as a string and a `duration` as an expression-language
+  duration string; ADR-0004 carries, as an open question, whether
+  `conforms/3` accepts those spellings beside the ones it was ruled to
+  accept. This section does not answer it, and decision 4 is not amended
+  here.
