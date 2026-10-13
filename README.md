@@ -87,6 +87,7 @@ in the record is the one-key fix.
 - Do
   - [Check a redefined type before you ship it](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Compatibility.html): every way the new declaration narrows the old one, in the API reference until a guide page exists.
   - [Find the required fields a value leaves unfilled](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Coverage.html): a map checked against a shape, in the API reference until a guide page exists.
+  - [Check the paths a chart's conditions read](docs/guides/check-chart-reads.md): each condition's reads listed by the expression language and checked against the events' payload types and the declared paths, each reported read with its reason.
   - [Check a payload against its type](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Conformance.html): every place a value breaks a record, a shape or a scalar, with its path, in the API reference until a guide page exists.
   - [Validate a document before you index it](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Schema.html): where the JSON Schema is and what it rejects, in the API reference until a guide page exists. The schema's `$id` is an identifier and does not resolve to a URL: read the file from the installed package.
   - [Upgrade a host](docs/upgrading.md): what a host changes for each minor from 0.4 on.
@@ -96,6 +97,7 @@ in the record is the one-key fix.
   - [Declarations](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Declarations.html): the document's named records and shapes, indexed by name.
   - [Types and the read check](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Types.html): the type expressions, inline shapes, and every answer `satisfies/3` gives.
   - [Events and sends](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Events.html): the events a chart receives and sends, the type of each payload, and the entries whose type names nothing.
+  - [The read check over a chart's reads](https://hexdocs.pm/statifier_datamodel/StatifierDatamodel.Reads.html): the rules a read is checked by, how an event name matches, and the three reasons a read is reported.
   - [The changelog](https://github.com/riddler/statifier_datamodel/blob/main/CHANGELOG.md): what changed in each version.
 - Understand
   - [Why the family shares one type registry](docs/explanation/why-one-type-registry.md): why the block editor and the expression editor read the document through one package that depends on neither, and what that costs.
