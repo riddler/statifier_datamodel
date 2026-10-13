@@ -55,9 +55,19 @@ defmodule StatifierDatamodel.Events do
   `event` scope is a different thing: one scope of paths every event carries,
   in the document's own addressing. An `events` entry declares one event's
   payload, read under `_event.data`, and the two do not overlap.
+
+  ## An improper list is not a list
+
+  An improper list, `[entry | :more]`, is a term no JSON decoder produces,
+  and every function here reads one as a value that is not a list, as
+  `StatifierDatamodel.Conformance` does. An improper `events` or `sends`
+  declares nothing; an improper `types` declares no type, and a declaration
+  whose `fields` is an improper list is dropped, so a `type` naming it is
+  `:unknown`. An index section that is an improper list holds no entry:
+  `unresolved/1` lists nothing for it and `fetch/3` answers `:error`.
   """
 
-  alias StatifierDatamodel.{Declarations, Types}
+  alias StatifierDatamodel.{Declarations, ProperLists, Types}
 
   @typedoc """
   One entry of `events` or `sends`, as indexed: its name, its payload's type
@@ -112,6 +122,7 @@ defmodule StatifierDatamodel.Events do
   """
   @spec from_document(term()) :: t()
   def from_document(document) when is_map(document) do
+    document = ProperLists.document(document)
     declarations = Declarations.from_document(document)
 
     Map.new(@sections, fn {section, key} ->
@@ -142,10 +153,8 @@ defmodule StatifierDatamodel.Events do
   @spec fetch(t(), section(), term()) :: {:ok, entry()} | :error
   def fetch(events, section, name)
       when is_map(events) and section in [:events, :sends] and is_binary(name) do
-    case Map.get(events, section) do
-      entries when is_list(entries) -> find(entries, name)
-      _absent -> :error
-    end
+    entries = Map.get(events, section)
+    if ProperLists.list?(entries), do: find(entries, name), else: :error
   end
 
   def fetch(_events, _section, _name), do: :error
@@ -228,11 +237,11 @@ defmodule StatifierDatamodel.Events do
   end
 
   @spec unknown(term()) :: [entry()]
-  defp unknown(entries) when is_list(entries) do
-    Enum.filter(entries, &match?(%{type: :unknown}, &1))
+  defp unknown(entries) do
+    if ProperLists.list?(entries),
+      do: Enum.filter(entries, &match?(%{type: :unknown}, &1)),
+      else: []
   end
-
-  defp unknown(_absent), do: []
 
   @spec string(term()) :: String.t() | nil
   defp string(value) when is_binary(value), do: value

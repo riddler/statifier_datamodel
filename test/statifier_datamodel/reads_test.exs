@@ -107,6 +107,13 @@ defmodule StatifierDatamodel.ReadsTest do
   defp read(events, path, location \\ nil),
     do: %{events: events, path: path, location: location}
 
+  # The answer, or the exception it raised, so a raise fails an assertion.
+  defp total(answer) do
+    answer.()
+  rescue
+    error -> {:raised, error.__struct__}
+  end
+
   # The reasons reported for one read, in order.
   defp reasons(document, read) do
     document |> Reads.undeclared([read]) |> Enum.map(fn {^read, reason} -> reason end)
@@ -458,6 +465,91 @@ defmodule StatifierDatamodel.ReadsTest do
       assert Reads.undeclared(@worked, nil) == []
       assert Reads.undeclared(@worked, %{path: ["loan", "x"]}) == []
       assert Reads.undeclared(@worked, [nil, "loan.x", %{events: []}, %{path: "loan.x"}]) == []
+    end
+
+    # Sabotage: dropping the proper-list check on the reads in undeclared/2
+    # turned this test red (a raise read as an answer); reverted.
+    test "reads handed in as an improper list report nothing" do
+      unmatched = read(["patron.registered"], ["_event", "data", "patron_id"])
+
+      assert Reads.undeclared(@worked, [unmatched]) == [{unmatched, :no_declared_event}]
+      assert total(fn -> Reads.undeclared(@worked, [unmatched | :more]) end) == []
+    end
+
+    # Sabotage: dropping the proper-list check on a read's path turned this
+    # test red; reverted.
+    test "a read whose path is an improper list is not a read" do
+      for path <- [["loan" | :more], ["_event", "data" | :more], ["_event", "data", "x" | :more]] do
+        assert total(fn -> Reads.undeclared(@worked, [read(["loan.renewed"], path)]) end) == []
+      end
+    end
+
+    # Sabotage: dropping the proper-list check on a read's events turned
+    # this test red; reverted.
+    test "a read whose events is an improper list names no event" do
+      improper = read(["loan.renewed" | :more], ["_event", "data", "copy_id"])
+
+      assert total(fn -> reasons(@worked, improper) end) == [:no_declared_event]
+    end
+
+    # Sabotage: removing the ProperLists.document/1 call from undeclared/2
+    # turned this test red at its first assertion; making
+    # ProperLists.document/1 leave a proper list's items as they are turned
+    # it red at the second; reverted each.
+    test "an improper list in the document is read as absent" do
+      due_on = %{"path" => "loan.due_on", "type" => "date"}
+      patron = %{"scope" => "global", "entries" => [%{"path" => "patron.id", "type" => "string"}]}
+
+      renewal = %{
+        "name" => "loans.renewal",
+        "kind" => "record",
+        "fields" => [%{"name" => "due_on"}]
+      }
+
+      odd = %{
+        "name" => "loans.renewal",
+        "kind" => "record",
+        "fields" => [%{"name" => "due_on"} | :x]
+      }
+
+      renewed = %{"name" => "loan.renewed", "type" => "loans.renewal"}
+      local = read([], ["loan", "due_on"])
+      payload = read(["loan.renewed"], ["_event", "data", "fine_cents"])
+
+      check = fn document, a_read -> total(fn -> reasons(document, a_read) end) end
+
+      assert check.(%{"scopes" => [patron | :more]}, payload) == []
+
+      entries = %{"scope" => "local", "entries" => [due_on | :more]}
+
+      assert check.(%{"scopes" => [entries, patron]}, local) == [
+               {:undeclared_path, ["loan", "due_on"]}
+             ]
+
+      nested = %{"path" => "loan", "type" => "object", "fields" => [due_on | :more]}
+      fields = %{"scope" => "local", "entries" => [nested]}
+
+      assert check.(%{"scopes" => [fields, patron]}, local) == [
+               {:undeclared_path, ["loan", "due_on"]}
+             ]
+
+      assert check.(%{"scopes" => [fields, patron]}, read([], ["loan"])) == []
+
+      assert check.(%{"scopes" => [], "types" => [renewal], "events" => [renewed]}, payload) ==
+               [{:undeclared, "loan.renewed", ["_event", "data", "fine_cents"]}]
+
+      assert check.(
+               %{"scopes" => [], "types" => [renewal | :more], "events" => [renewed]},
+               payload
+             ) == []
+
+      assert check.(%{"scopes" => [], "types" => [odd], "events" => [renewed]}, payload) == []
+
+      assert check.(
+               %{"scopes" => [], "types" => [renewal], "events" => [renewed | :more]},
+               payload
+             ) ==
+               [:no_declared_event]
     end
 
     # Sabotage: answering nothing for a payload read whose names match no

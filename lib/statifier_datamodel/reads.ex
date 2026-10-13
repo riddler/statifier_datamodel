@@ -60,6 +60,19 @@ defmodule StatifierDatamodel.Reads do
   `StatifierDatamodel.Index.index/1` does not admit - has nothing to check a
   read against, and reports nothing.
 
+  ## An improper list is not a list
+
+  An improper list, `[read | :more]`, is a term no JSON decoder and no
+  expression analysis produces, and the check reads one as a value that is
+  not a list, as `StatifierDatamodel.Conformance` does. Reads handed in as
+  an improper list report nothing, as reads that are not a list do. A read
+  whose `path` is an improper list is not a read, and reports nothing. A
+  read whose `events` is an improper list names no event, so a read under
+  `_event` matches none and is `:no_declared_event`. In the document, an
+  improper list anywhere is read as absent: an improper `scopes` is not a
+  datamodel document, and an improper `entries`, `fields`, `types` or
+  `events` declares nothing.
+
   ## The answer
 
   `{read, reason}` pairs, in the order the reads came in, the read exactly
@@ -86,7 +99,7 @@ defmodule StatifierDatamodel.Reads do
   (ADR-0001 decision 12).
   """
 
-  alias StatifierDatamodel.{Declarations, Document, Events, Index, Types}
+  alias StatifierDatamodel.{Declarations, Document, Events, Index, ProperLists, Types}
 
   @typedoc """
   One step of a path, in `Predicator.Analysis.references/1`'s form: a name,
@@ -163,6 +176,13 @@ defmodule StatifierDatamodel.Reads do
   """
   @spec undeclared(term(), [read()]) :: [{read(), reason()}]
   def undeclared(document, reads) when is_list(reads) do
+    if ProperLists.list?(reads), do: check(ProperLists.document(document), reads), else: []
+  end
+
+  def undeclared(_document, _not_a_list), do: []
+
+  @spec check(term(), [term()]) :: [{read(), reason()}]
+  defp check(document, reads) do
     case Index.index(document) do
       nil ->
         []
@@ -180,20 +200,21 @@ defmodule StatifierDatamodel.Reads do
     end
   end
 
-  def undeclared(_document, _not_a_list), do: []
-
   # -- one read ----------------------------------------------------------------
 
   @spec reasons(term(), map()) :: [reason()]
-  defp reasons(%{path: ["_event" | rest] = path} = read, context) do
-    event_reasons(rest, path, Map.get(read, :events), context)
-  end
-
-  defp reasons(%{path: path}, context) when is_list(path) do
-    path_reasons(path, context.declared_paths)
+  defp reasons(%{path: path} = read, context) do
+    if ProperLists.list?(path), do: path_reasons(path, read, context), else: []
   end
 
   defp reasons(_not_a_read, _context), do: []
+
+  @spec path_reasons([term()], map(), map()) :: [reason()]
+  defp path_reasons(["_event" | rest] = path, read, context) do
+    event_reasons(rest, path, Map.get(read, :events), context)
+  end
+
+  defp path_reasons(path, _read, context), do: root_reasons(path, context.declared_paths)
 
   # Rules 1 to 6: a read under `_event`.
   @spec event_reasons([term()], [term()], term(), map()) :: [reason()]
@@ -237,8 +258,8 @@ defmodule StatifierDatamodel.Reads do
   defp event_failure(_not_data, _rest, _type, _declarations), do: {:undeclared, 0}
 
   # Rule 7: any other root, against the declared paths.
-  @spec path_reasons([term()], MapSet.t(String.t()) | nil) :: [reason()]
-  defp path_reasons(path, declared_paths) do
+  @spec root_reasons([term()], MapSet.t(String.t()) | nil) :: [reason()]
+  defp root_reasons(path, declared_paths) do
     prefix = Enum.take_while(path, &is_binary/1)
 
     cond do
@@ -253,12 +274,14 @@ defmodule StatifierDatamodel.Reads do
 
   # The declared events the read's names match, in the document's order.
   @spec matching(term(), [Events.entry()]) :: [Events.entry()]
-  defp matching(names, entries) when is_list(names) do
-    descriptors = for name <- names, is_binary(name), do: descriptor(name)
-    Enum.filter(entries, fn entry -> Enum.any?(descriptors, &matches?(&1, entry.name)) end)
+  defp matching(names, entries) do
+    if ProperLists.list?(names) do
+      descriptors = for name <- names, is_binary(name), do: descriptor(name)
+      Enum.filter(entries, fn entry -> Enum.any?(descriptors, &matches?(&1, entry.name)) end)
+    else
+      []
+    end
   end
-
-  defp matching(_not_a_list, _entries), do: []
 
   # SCXML reads `loan.*` as `loan`.
   @spec descriptor(String.t()) :: String.t()
