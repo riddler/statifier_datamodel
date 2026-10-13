@@ -1,3 +1,0 @@
-### Added
-
-- `StatifierDatamodel.Conformance.conforms/3` checks a value, such as an event payload decoded from JSON or built in Elixir, against a type expression (a declared record or shape, an inline shape, or one of the nine), and answers `:ok` or `{:error, mismatches}`, each mismatch `{path, reason}` with `reason` either `:missing` (a required field absent or `nil`) or `{:expected, type}`; scalars conform as a decoded JSON value spells them or as the matching struct, a `decimal` and a `duration` also as ADR-0001 decision 4's strings, a list descends its item type, extra keys are ignored and `one_of` is not enforced; `Types.satisfies/3` and `Coverage.missing/3` answer as before.

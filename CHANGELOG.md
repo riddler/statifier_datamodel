@@ -12,6 +12,18 @@ the fragments are assembled
 into a version section at release. See that README for the format and for when a
 change warrants an entry at all.
 
+## [0.7.0] 2026-10-13
+
+A minor that adds three public modules and two optional keys to the datamodel document. `StatifierDatamodel.Events` indexes the new `events` and `sends` keys, `StatifierDatamodel.Conformance` checks a value against a type, and `StatifierDatamodel.Reads` checks the paths a chart's conditions read against a document. `Index`, `Document`, `Declarations`, `Types` and `Coverage` answer exactly as before for every document. A document that already carries a top-level `events` or `sends` key of its own is now read by the new index, and the shipped JSON Schema stays advisory: [the upgrading page](https://github.com/riddler/statifier_datamodel/blob/v0.7.0/docs/upgrading.md) says what to change. No runtime dependency is added.
+
+### Added
+
+- `StatifierDatamodel.Reads.undeclared/2` checks the paths a chart's conditions read against a datamodel document: given the document and a list of reads, each `%{events: names, path: segments, location: term}` with the path in the expression language's `references/1` form, it answers the reads the document does not declare, in input order, each with its location and a reason, `:no_declared_event`, `{:undeclared, event_name, prefix}` or `{:undeclared_path, prefix}`; `_event.data` paths are checked against the payload type of every declared event the names match (SCXML token-prefix matching, `*` and `.*` included), the `_event` system fields are skipped, other roots are checked against the declared paths only when the document declares one, and the package takes no dependency on the expression language.
+- `StatifierDatamodel.Events` reads two new optional top-level keys of the datamodel document, `events` and `sends`: lists of entries carrying a `name`, a payload `type` (one of the nine or a declared record or shape), and an optional `label` and `note`, indexed in list order with the first occurrence of a name kept, through `from_document/1` and `fetch/3`; an entry missing `name` or `type` is dropped, and an entry whose type names nothing declared is typed `:unknown` and listed by `unresolved/1`, never refused.
+- The JSON Schema gains the optional `events` and `sends` properties, each an array of entries requiring a non-empty `name` and `type`.
+- A document carrying a top-level `events` or `sends` key (a host's own annotation until now) is read by the new index; nothing `Index`, `Document`, `Declarations`, `Types` or `Coverage` answers changes, but a host whose own annotation used either name should rename that key, or rewrite it as the entries above, since the JSON Schema now rejects either key when it is not a list of such entries.
+- `StatifierDatamodel.Conformance.conforms/3` checks a value, such as an event payload decoded from JSON or built in Elixir, against a type expression (a declared record or shape, an inline shape, or one of the nine), and answers `:ok` or `{:error, mismatches}`, each mismatch `{path, reason}` with `reason` either `:missing` (a required field absent or `nil`) or `{:expected, type}`; scalars conform as a decoded JSON value spells them or as the matching struct, a `decimal` and a `duration` also as ADR-0001 decision 4's strings, a list descends its item type, extra keys are ignored and `one_of` is not enforced; `Types.satisfies/3` and `Coverage.missing/3` answer as before.
+
 ## [0.6.0] 2026-10-11
 
 A minor that adds one public function and types four keys in the shipped
