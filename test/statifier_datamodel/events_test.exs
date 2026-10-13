@@ -121,6 +121,13 @@ defmodule StatifierDatamodel.EventsTest do
 
   defp one(section, entry), do: Events.from_document(%{section => [entry]})
 
+  # The answer, or the exception it raised, so a raise fails an assertion.
+  defp total(answer) do
+    answer.()
+  rescue
+    error -> {:raised, error.__struct__}
+  end
+
   describe "the worked example" do
     # Sabotage: resolving a spelling that names nothing to {:opaque, name}
     # instead of :unknown in events.ex turned this test red at loan.lost;
@@ -332,6 +339,64 @@ defmodule StatifierDatamodel.EventsTest do
       assert Events.fetch(events, :events, :loan_renewed) == :error
       assert Events.fetch(%{events: "not a list"}, :events, "loan.renewed") == :error
       assert Events.unresolved(%{events: "not a list"}) == %{events: [], sends: []}
+    end
+
+    # Sabotage: removing the ProperLists.document/1 call from
+    # from_document/1 turned this test red (a raise read as an answer);
+    # reverted.
+    test "an improper events or sends list declares nothing" do
+      entry = %{"name" => "loan.renewed", "type" => "object"}
+      indexed = %{name: "loan.renewed", type: :object, label: nil, note: nil}
+
+      assert total(fn ->
+               Events.from_document(%{"events" => [entry | :more], "sends" => [entry]})
+             end) ==
+               %{events: [], sends: [indexed]}
+
+      assert total(fn ->
+               Events.from_document(%{"events" => [entry], "sends" => [entry | :more]})
+             end) ==
+               %{events: [indexed], sends: []}
+    end
+
+    # Sabotage: making ProperLists.document/1 leave a map's values as they
+    # are turned this test red; reverted.
+    test "an improper types list declares no type, and an improper fields list drops its declaration" do
+      field = %{"name" => "due_on", "type" => "date", "required?" => true}
+      renewal = %{"name" => "loans.renewal", "kind" => "record", "fields" => [field]}
+      odd = %{"name" => "loans.odd", "kind" => "record", "fields" => [field | :more]}
+
+      events = [
+        %{"name" => "loan.renewed", "type" => "loans.renewal"},
+        %{"name" => "loan.odd", "type" => "loans.odd"}
+      ]
+
+      types = fn document -> Enum.map(document.events, & &1.type) end
+
+      assert total(fn ->
+               %{"types" => [renewal | :more], "events" => events}
+               |> Events.from_document()
+               |> types.()
+             end) == [:unknown, :unknown]
+
+      assert total(fn ->
+               %{"types" => [odd, renewal], "events" => events}
+               |> Events.from_document()
+               |> types.()
+             end) == [{:declared, "loans.renewal"}, :unknown]
+    end
+
+    # Sabotage: dropping the proper-list check from unresolved/1 turned
+    # this test red at its first assertion; dropping it from fetch/3 turned
+    # it red at the last; reverted each.
+    test "an index section that is an improper list holds no entry" do
+      lost = %{name: "loan.lost", type: :unknown, label: nil, note: nil}
+
+      assert total(fn -> Events.unresolved(%{events: [lost | :more], sends: [lost]}) end) ==
+               %{events: [], sends: [lost]}
+
+      assert total(fn -> Events.fetch(%{events: [lost | :more]}, :events, "loan.lost") end) ==
+               :error
     end
   end
 
