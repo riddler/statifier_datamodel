@@ -21,6 +21,18 @@ That a `nil` field type or item type reads as unknown, and that a
 conductor under a standing consent, 2026-10-13. Both are recorded in
 decision 7 by a dated edit of that day.
 
+The read check's reason vocabulary, `[{read, reason}]` in input order with
+`reason` one of `:no_declared_event`, `{:undeclared, event_name, prefix}`
+or `{:undeclared_path, prefix}`, was ruled by the operator, 2026-10-13.
+That a read under `_event` naming neither `data` nor a system field is
+reported, that a `nil` field type reads as unknown in the read check's
+descent, and that a descriptor ending `.*` matches as the bare prefix does
+were decided by the conductor under a standing consent, 2026-10-13. The
+prefix each reason carries, the order of several reasons for one read, and
+the answer for an input that is not a document were settled with the code
+the same day. All of them are recorded in decision 6 by a dated edit of
+that day.
+
 ## Context
 
 **What a host has today.** A datamodel document declares the paths an author
@@ -171,6 +183,43 @@ in input order, each with its location. Its rules:
    decision 7), which is why an integer segment ends this prefix as
    `:dynamic` does.
 
+**The answer** *(added 2026-10-13, closing the question this record
+carried)*. `undeclared/2` answers `{read, reason}` pairs, in the order the
+reads came in, the read exactly as it was handed in. `reason` is one of
+three:
+
+| `reason` | When |
+|---|---|
+| `:no_declared_event` | rule 6: a read under `_event` whose names match no declared event |
+| `{:undeclared, event_name, prefix}` | rules 1 and 4: the payload type of the declared event `event_name` does not declare the path; `prefix` is the read's path up to and including the first segment that is not declared |
+| `{:undeclared_path, prefix}` | rule 7: a read of another root the declared paths do not hold; `prefix` is the checked prefix, the read's string segments up to the first that is not a string |
+
+A read under names that match several events carries one
+`{:undeclared, event_name, prefix}` for each event it fails on, in the
+document's `events` order. A read that is declared or skipped is not in
+the answer, and neither is an item of the list that is not a read.
+
+**Four readings** *(added 2026-10-13)*.
+
+- **A field under `_event` other than `data` and the system fields** is
+  one no event carries, so it is reported like a payload path a type does
+  not declare: one `{:undeclared, event_name, ["_event", field]}` for each
+  event the read's names match, or `:no_declared_event` when they match
+  none. `_event` followed by a `:dynamic` segment is `_event` alone under
+  rule 5, and is skipped.
+- **A `nil` field type** - a field whose `type`, or a `list` field whose
+  `item_type`, names nothing the document declares, which
+  `Declarations.from_document/1` indexes `nil` - is read as unknown under
+  rule 4 and declares whatever lies beneath it, as `conforms/3` reads it
+  (decision 7).
+- **A descriptor ending `.*`** matches as the name without it does under
+  rule 2 (`loan.*` as `loan`), which is the SCXML token-prefix rule's own
+  reading of that spelling.
+- **An input that is not a document**, one `Index.index/1` does not admit,
+  has nothing to check a read against and answers `[]`, keeping *not a
+  document* distinguishable from a document declaring no events, under
+  which every payload read is reported by rule 6.
+
 The package never parses the expression a read came from and takes no
 dependency to do so. The host composes the expression language's
 `references/1` over its chart's conditions and hands the reads in, and the
@@ -287,6 +336,16 @@ defmodule StatifierDatamodel.Conformance do
 end
 ```
 
+*Added 2026-10-13:* the placeholder `Reads.reason()` above is closed by
+decision 6, "The answer":
+
+```elixir
+@type reason ::
+        :no_declared_event
+        | {:undeclared, String.t(), [segment()]}
+        | {:undeclared_path, [String.t()]}
+```
+
 Every function is total over any input and none raises. `from_document/1`
 answers both sections empty for a value that is not a document, and
 `fetch/3` answers `:error` for a name its section does not hold, because
@@ -386,6 +445,12 @@ composition of `references/1` hands it in:
 | `[]` | `["loan", "due_on"]` | no: `loan.due_on` is a declared path |
 | `[]` | `["loan", "fine_cents"]` | yes: the document declares paths and not `loan.fine_cents` |
 
+*Added 2026-10-13:* the reported rows answer, in the table's order:
+`{:undeclared, "loan.renewed", ["_event", "data", "fine_cents"]}`;
+`{:undeclared, "loan.returned", ["_event", "data", "due_on"]}`;
+`{:undeclared, "loan.renewed", ["_event", "data", "returned_at"]}`;
+`:no_declared_event`; and `{:undeclared_path, ["loan", "fine_cents"]}`.
+
 **Conformance** (decision 7), against the payload `loan.renewed` declares:
 
 ```elixir
@@ -436,6 +501,8 @@ against `loan.lost`'s `:unknown` every value answers `:ok`.
 - **The read check's "why" waits for a ruling.** The rules above are decided
   and the input shape is decided; the vocabulary of reasons the answer
   carries is not, and the code that builds the check waits for it.
+  *Closed 2026-10-13: the vocabulary was ruled, and decision 6, "The
+  answer", records it.*
 - **Three changes build this record.** `sd-nyg` builds `Events` (decisions
   1-5) with the schema change; `sd-31h` builds `Reads` (decision 6) and the
   guide that composes it with the expression language; `sd-o58` builds
@@ -466,9 +533,12 @@ against `loan.lost`'s `:unknown` every value answers `:ok`.
   names neither reason term, nor the spelling of an answer that carries the
   event a path failed on. They are a public vocabulary and wait for a
   ruling; `Reads.reason()` above is a placeholder for it.
+  *Closed 2026-10-13: ruled; decision 6, "The answer", records the three
+  reasons and the prefix each carries.*
 - **A read under `_event` naming neither `data` nor a system field.** SCXML's
   `_event` carries the seven fields named in decision 6 and no other, and the
   rules above do not say whether such a read is skipped or reported.
+  *Closed 2026-10-13: reported (decision 6, "Four readings").*
 - **Decision 7's scalars beside ADR-0001 decision 4.** Decision 4 says a
   `decimal` "is a string", that there are "no floats", and that a `duration`
   is "an expression-language duration string (`30s`, `1h30m`)". Decision 7
