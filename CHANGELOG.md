@@ -12,6 +12,14 @@ the fragments are assembled
 into a version section at release. See that README for the format and for when a
 change warrants an entry at all.
 
+## [0.7.1] 2026-10-13
+
+Patch release: `Events.from_document/1`, `Events.unresolved/1`, `Events.fetch/3` and `Reads.undeclared/2` are now total over an improper list, which no JSON decoder produces. Every answer for a proper input is unchanged, no public type or function is added, and no runtime dependency is added.
+
+### Fixed
+
+- `Events.from_document/1`, `Events.unresolved/1`, `Events.fetch/3` and `Reads.undeclared/2` no longer raise on an improper list in any list position they read: one is read as a value that is not a list, so it declares nothing, a read whose `path` is one is not a read, and a read whose `events` is one names no event.
+
 ## [0.7.0] 2026-10-13
 
 A minor that adds three public modules and two optional keys to the datamodel document. `StatifierDatamodel.Events` indexes the new `events` and `sends` keys, `StatifierDatamodel.Conformance` checks a value against a type, and `StatifierDatamodel.Reads` checks the paths a chart's conditions read against a document. `Index`, `Document`, `Declarations`, `Types` and `Coverage` answer exactly as before for every document. A document that already carries a top-level `events` or `sends` key of its own is now read by the new index, and the shipped JSON Schema stays advisory: [the upgrading page](https://github.com/riddler/statifier_datamodel/blob/v0.7.0/docs/upgrading.md) says what to change. No runtime dependency is added.
