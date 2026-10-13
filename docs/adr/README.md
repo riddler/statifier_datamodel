@@ -5,7 +5,7 @@
 | [0001](0001-datamodel-document.md) | The datamodel document, re-homed: a typed three-scope declaration with named record and shape types, and the declared-path set as its projection | accepted |
 | [0002](0002-datamodel-document-json-schema.md) | The datamodel document ships a JSON Schema - draft-07, hand-written, advisory, never the admission rule | accepted |
 | [0003](0003-release-workflow-publishes-on-tag-push.md) | A release workflow publishes to Hex on the push of a version tag, and only from a green, matching commit on the default branch | accepted |
-| [0004](0004-event-and-send-payloads.md) | Event and send payloads: the `events` and `sends` sections, a read check over reads handed in as data, and value conformance | proposed |
+| [0004](0004-event-and-send-payloads.md) | Event and send payloads: the `events` and `sends` sections, a read check over reads handed in as data, and value conformance | accepted |
 
 New ADRs: next number, same three-section format (Context, Decision,
 Consequences), plus the typespecs and worked-example sections this family's
